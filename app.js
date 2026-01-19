@@ -421,6 +421,12 @@ async function saveUserColor() {
             color: color
         });
 
+        // Update local cache
+        appData.userColors[currentFirebaseUser.uid] = color;
+
+        // Update charts to reflect new color
+        updateCharts();
+
         showNotification('Farbe erfolgreich gespeichert!', 'success');
     } catch (error) {
         console.error('Save user color error:', error);
@@ -513,6 +519,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup time input auto-formatting
     setupTimeInputFormatting();
+
+    // Setup automatic time calculations
+    setupTimeCalculations();
 
     // If auth state changed before DOM was ready, handle it now
     if (pendingAuthUser !== null) {
@@ -727,6 +736,109 @@ function formatTimeInput(input) {
     } else {
         input.value = ''; // Invalid time, clear it
         showNotification('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59', 'warning');
+    }
+}
+
+// Setup automatic time calculations
+function setupTimeCalculations() {
+    // For create form
+    setupTimeCalcForForm('entry');
+
+    // For edit form
+    setupTimeCalcForForm('editEntry');
+}
+
+function setupTimeCalcForForm(prefix) {
+    const startTimeInput = document.getElementById(`${prefix}StartTime`);
+    const endTimeInput = document.getElementById(`${prefix}EndTime`);
+    const durationInput = document.getElementById(`${prefix}Duration`);
+
+    if (!startTimeInput || !endTimeInput || !durationInput) return;
+
+    // Calculate duration when start or end time changes
+    startTimeInput.addEventListener('change', () => calculateDuration(prefix));
+    endTimeInput.addEventListener('change', () => calculateDuration(prefix));
+
+    // Calculate missing time when duration changes
+    durationInput.addEventListener('input', () => calculateTimeFromDuration(prefix));
+}
+
+function calculateDuration(prefix) {
+    const startTimeInput = document.getElementById(`${prefix}StartTime`);
+    const endTimeInput = document.getElementById(`${prefix}EndTime`);
+    const durationInput = document.getElementById(`${prefix}Duration`);
+
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+
+    if (!startTime || !endTime) return;
+
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+
+    let durationHours = endHours - startHours;
+    let durationMinutes = endMinutes - startMinutes;
+
+    // Handle negative minutes
+    if (durationMinutes < 0) {
+        durationHours -= 1;
+        durationMinutes += 60;
+    }
+
+    // Handle overnight shifts
+    if (durationHours < 0) {
+        durationHours += 24;
+    }
+
+    // Convert to decimal hours
+    const duration = durationHours + (durationMinutes / 60);
+    durationInput.value = Math.round(duration * 100) / 100;
+}
+
+function calculateTimeFromDuration(prefix) {
+    const startTimeInput = document.getElementById(`${prefix}StartTime`);
+    const endTimeInput = document.getElementById(`${prefix}EndTime`);
+    const durationInput = document.getElementById(`${prefix}Duration`);
+
+    const duration = parseFloat(durationInput.value);
+    if (!duration || duration <= 0) return;
+
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+
+    // Calculate end time from start time + duration
+    if (startTime && !endTime) {
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        const durationMinutes = Math.round(duration * 60);
+
+        let totalMinutes = startHours * 60 + startMinutes + durationMinutes;
+
+        // Handle overflow (next day)
+        if (totalMinutes >= 24 * 60) {
+            totalMinutes = totalMinutes % (24 * 60);
+        }
+
+        const endHours = Math.floor(totalMinutes / 60);
+        const endMinutes = totalMinutes % 60;
+
+        endTimeInput.value = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+    }
+    // Calculate start time from end time - duration
+    else if (endTime && !startTime) {
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        const durationMinutes = Math.round(duration * 60);
+
+        let totalMinutes = endHours * 60 + endMinutes - durationMinutes;
+
+        // Handle underflow (previous day)
+        if (totalMinutes < 0) {
+            totalMinutes = (24 * 60) + totalMinutes;
+        }
+
+        const startHours = Math.floor(totalMinutes / 60);
+        const startMinutes = totalMinutes % 60;
+
+        startTimeInput.value = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
     }
 }
 
@@ -1335,8 +1447,9 @@ async function saveTimeEntry(event) {
     }
 
     const date = document.getElementById('entryDate').value;
-    const startTime = document.getElementById('entryStartTime').value;
-    const endTime = document.getElementById('entryEndTime').value;
+    let startTime = document.getElementById('entryStartTime').value;
+    let endTime = document.getElementById('entryEndTime').value;
+    const durationInput = document.getElementById('entryDuration').value;
     const clientId = document.getElementById('entryClient').value;
     const projectId = document.getElementById('entryProject').value;
     const tagsInput = document.getElementById('entryTags').value;
@@ -1346,14 +1459,47 @@ async function saveTimeEntry(event) {
         .filter(t => t.length > 0);
     const description = document.getElementById('entryDescription').value.trim();
 
-    // Calculate duration in hours
-    const start = new Date(`${date}T${startTime}`);
-    const end = new Date(`${date}T${endTime}`);
-    let duration = (end - start) / (1000 * 60 * 60);
-
-    if (duration <= 0) {
-        showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
+    // Validate that at least 2 of 3 fields are filled (start, end, duration)
+    const fieldsCount = [startTime, endTime, durationInput].filter(f => f).length;
+    if (fieldsCount < 2) {
+        showNotification('Bitte mindestens zwei Felder ausfüllen: Startzeit, Endzeit oder Dauer', 'warning');
         return;
+    }
+
+    // Calculate missing field
+    let duration;
+    if (startTime && endTime) {
+        // Calculate duration from times
+        const start = new Date(`${date}T${startTime}`);
+        const end = new Date(`${date}T${endTime}`);
+        duration = (end - start) / (1000 * 60 * 60);
+
+        if (duration <= 0) {
+            showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
+            return;
+        }
+    } else if (durationInput) {
+        duration = parseFloat(durationInput);
+
+        if (startTime && !endTime) {
+            // Calculate end time from start + duration
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const durationMinutes = Math.round(duration * 60);
+            let totalMinutes = hours * 60 + minutes + durationMinutes;
+            if (totalMinutes >= 24 * 60) totalMinutes = totalMinutes % (24 * 60);
+            const endHours = Math.floor(totalMinutes / 60);
+            const endMinutes = totalMinutes % 60;
+            endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+        } else if (endTime && !startTime) {
+            // Calculate start time from end - duration
+            const [hours, minutes] = endTime.split(':').map(Number);
+            const durationMinutes = Math.round(duration * 60);
+            let totalMinutes = hours * 60 + minutes - durationMinutes;
+            if (totalMinutes < 0) totalMinutes = (24 * 60) + totalMinutes;
+            const startHours = Math.floor(totalMinutes / 60);
+            const startMinutes = totalMinutes % 60;
+            startTime = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
+        }
     }
 
     // Round to project's minimum interval (default: 15 minutes)
@@ -1520,6 +1666,7 @@ function editEntry(entryId) {
     document.getElementById('editEntryDate').value = entry.date;
     document.getElementById('editEntryStartTime').value = entry.startTime;
     document.getElementById('editEntryEndTime').value = entry.endTime;
+    document.getElementById('editEntryDuration').value = Math.round(entry.duration * 100) / 100;
     document.getElementById('editEntryClient').value = entry.clientId;
     loadProjectsForClientEdit(entry.clientId);
     setTimeout(() => {
@@ -1539,16 +1686,51 @@ async function updateTimeEntry(event) {
     if (!entry) return;
 
     const date = document.getElementById('editEntryDate').value;
-    const startTime = document.getElementById('editEntryStartTime').value;
-    const endTime = document.getElementById('editEntryEndTime').value;
+    let startTime = document.getElementById('editEntryStartTime').value;
+    let endTime = document.getElementById('editEntryEndTime').value;
+    const durationInput = document.getElementById('editEntryDuration').value;
 
-    const start = new Date(`${date}T${startTime}`);
-    const end = new Date(`${date}T${endTime}`);
-    let duration = (end - start) / (1000 * 60 * 60);
-
-    if (duration <= 0) {
-        showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
+    // Validate that at least 2 of 3 fields are filled (start, end, duration)
+    const fieldsCount = [startTime, endTime, durationInput].filter(f => f).length;
+    if (fieldsCount < 2) {
+        showNotification('Bitte mindestens zwei Felder ausfüllen: Startzeit, Endzeit oder Dauer', 'warning');
         return;
+    }
+
+    // Calculate missing field
+    let duration;
+    if (startTime && endTime) {
+        // Calculate duration from times
+        const start = new Date(`${date}T${startTime}`);
+        const end = new Date(`${date}T${endTime}`);
+        duration = (end - start) / (1000 * 60 * 60);
+
+        if (duration <= 0) {
+            showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
+            return;
+        }
+    } else if (durationInput) {
+        duration = parseFloat(durationInput);
+
+        if (startTime && !endTime) {
+            // Calculate end time from start + duration
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const durationMinutes = Math.round(duration * 60);
+            let totalMinutes = hours * 60 + minutes + durationMinutes;
+            if (totalMinutes >= 24 * 60) totalMinutes = totalMinutes % (24 * 60);
+            const endHours = Math.floor(totalMinutes / 60);
+            const endMinutes = totalMinutes % 60;
+            endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+        } else if (endTime && !startTime) {
+            // Calculate start time from end - duration
+            const [hours, minutes] = endTime.split(':').map(Number);
+            const durationMinutes = Math.round(duration * 60);
+            let totalMinutes = hours * 60 + minutes - durationMinutes;
+            if (totalMinutes < 0) totalMinutes = (24 * 60) + totalMinutes;
+            const startHours = Math.floor(totalMinutes / 60);
+            const startMinutes = totalMinutes % 60;
+            startTime = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
+        }
     }
 
     const tagsInput = document.getElementById('editEntryTags').value;
