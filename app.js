@@ -122,6 +122,38 @@ function closeNotification(button) {
 }
 
 // ============================================
+// DARK MODE
+// ============================================
+
+function initDarkMode() {
+    // Load saved preference
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateDarkModeIcon(savedTheme);
+}
+
+function toggleDarkMode() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateDarkModeIcon(newTheme);
+}
+
+function updateDarkModeIcon(theme) {
+    const icon = theme === 'dark' ? '☀️' : '🌙';
+    const darkModeIcon = document.getElementById('darkModeIcon');
+    const darkModeIconAuth = document.getElementById('darkModeIconAuth');
+
+    if (darkModeIcon) darkModeIcon.textContent = icon;
+    if (darkModeIconAuth) darkModeIconAuth.textContent = icon;
+}
+
+// Initialize dark mode on load
+initDarkMode();
+
+// ============================================
 // AUTHENTICATION FUNCTIONS
 // ============================================
 
