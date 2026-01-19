@@ -186,9 +186,21 @@ service cloud.firestore {
 
     // Users
     match /users/{userId} {
-      allow read, write: if request.auth != null &&
-                            request.auth.uid == userId &&
-                            isWhitelisted();
+      allow write: if request.auth != null &&
+                      request.auth.uid == userId &&
+                      isWhitelisted();
+      allow read: if request.auth != null &&
+                     isWhitelisted() &&
+                     (
+                       // Can always read own document
+                       request.auth.uid == userId ||
+                       // Can read documents of users in same organization
+                       (
+                         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId ==
+                         get(/databases/$(database)/documents/users/$(userId)).data.organizationId
+                       )
+                     );
     }
 
     // Invite Codes
