@@ -565,6 +565,7 @@ function initializeApp() {
     renderClients();
     renderProjects();
     renderTodayEntries();
+    renderRecentProjects();
     updateDashboardStats();
     populateFilterDropdowns();
     populateExportDropdowns();
@@ -788,6 +789,7 @@ function switchUser(userId) {
     currentUser = appData.users.find(u => u.id === userId) || null;
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, userId);
     renderTodayEntries();
+        renderRecentProjects();
     updateDashboardStats();
 }
 
@@ -938,6 +940,7 @@ async function deleteClient(clientId) {
         renderClients();
         renderProjects();
         renderTodayEntries();
+        renderRecentProjects();
         updateDashboardStats();
         updateCharts();
         populateExportDropdowns();
@@ -1127,6 +1130,7 @@ async function deleteProject(projectId) {
 
         renderProjects();
         renderTodayEntries();
+        renderRecentProjects();
         updateDashboardStats();
         updateCharts();
         populateExportDropdowns();
@@ -1343,6 +1347,7 @@ async function saveTimeEntry(event) {
         resetTimer();
 
         renderTodayEntries();
+        renderRecentProjects();
         updateDashboardStats();
         updateCharts();
         populateFilterDropdowns();
@@ -1393,6 +1398,68 @@ function renderTodayEntries() {
             </div>
         `;
     }).join('');
+}
+
+function renderRecentProjects() {
+    const container = document.getElementById('recentProjects');
+
+    // Get unique projects from current user's entries, sorted by most recent
+    const userEntries = appData.entries
+        .filter(e => e.userId === currentFirebaseUser?.uid)
+        .sort((a, b) => {
+            const dateCompare = b.date.localeCompare(a.date);
+            if (dateCompare !== 0) return dateCompare;
+            return b.createdAt?.localeCompare(a.createdAt || '') || 0;
+        });
+
+    // Get unique project IDs (last 3)
+    const uniqueProjectIds = [...new Set(userEntries.map(e => e.projectId))].slice(0, 3);
+
+    if (uniqueProjectIds.length === 0) {
+        container.innerHTML = '<p class="empty-state-small">Noch keine Einträge</p>';
+        return;
+    }
+
+    container.innerHTML = uniqueProjectIds.map(projectId => {
+        const project = appData.projects.find(p => p.id === projectId);
+        if (!project) return '';
+
+        const client = appData.clients.find(c => c.id === project.clientId);
+
+        return `
+            <button class="recent-project-btn" onclick="quickStartProject('${projectId}')">
+                <div class="recent-project-name">${escapeHtml(project.name)}</div>
+                <div class="recent-project-client">${client ? escapeHtml(client.name) : 'Kein Kunde'}</div>
+            </button>
+        `;
+    }).join('');
+}
+
+function quickStartProject(projectId) {
+    const project = appData.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // Set current date and time
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    // Fill form
+    document.getElementById('entryDate').value = today;
+    document.getElementById('entryStartTime').value = currentTime;
+    document.getElementById('entryEndTime').value = ''; // User fills this in
+    document.getElementById('entryClient').value = project.clientId;
+
+    // Load projects for client, then select project
+    loadProjectsForClient(project.clientId);
+    setTimeout(() => {
+        document.getElementById('entryProject').value = projectId;
+    }, 100);
+
+    // Scroll to form
+    document.getElementById('entryEndTime').focus();
+
+    showNotification('Projekt vorausgewählt - bitte Endzeit eintragen', 'info');
 }
 
 function editEntry(entryId) {
@@ -1476,6 +1543,7 @@ async function updateTimeEntry(event) {
         closeModal('editEntryModal');
 
         renderTodayEntries();
+        renderRecentProjects();
         renderProjects();
         updateDashboardStats();
         updateCharts();
@@ -1499,6 +1567,7 @@ async function deleteEntry(entryId) {
         appData.entries = appData.entries.filter(e => e.id !== entryId);
 
         renderTodayEntries();
+        renderRecentProjects();
         renderProjects();
         updateDashboardStats();
         updateCharts();

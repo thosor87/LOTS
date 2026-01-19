@@ -140,60 +140,73 @@
                 <p>Erfasse deine Arbeitszeiten schnell und einfach</p>
             </div>
 
-            <!-- Timer -->
-            <div class="timer-container">
-                <div class="timer-display">
-                    <span id="timerDisplay">00:00:00</span>
-                </div>
-                <div class="timer-controls">
-                    <button class="btn btn-primary btn-large" id="startStopBtn" onclick="toggleTimer()">
-                        <span id="timerBtnText">▶ Start</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="resetTimer()">↺ Reset</button>
-                </div>
-            </div>
-
-            <!-- Manuelle Eingabe -->
-            <div class="time-entry-form">
-                <h3>Zeiteintrag erstellen</h3>
-                <form id="timeEntryForm" onsubmit="saveTimeEntry(event)">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="entryDate">Datum</label>
-                            <input type="date" id="entryDate" required>
+            <div class="time-tracking-wrapper">
+                <!-- Left Column: Timer & Quick Access -->
+                <div class="time-tracking-sidebar">
+                    <!-- Timer -->
+                    <div class="timer-card">
+                        <div class="timer-display">
+                            <span id="timerDisplay">00:00:00</span>
                         </div>
-                        <div class="form-group">
-                            <label for="entryStartTime">Startzeit</label>
-                            <input type="time" id="entryStartTime" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="entryEndTime">Endzeit</label>
-                            <input type="time" id="entryEndTime" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="entryClient">Kunde</label>
-                            <select id="entryClient" required onchange="loadProjectsForClient(this.value)">
-                                <option value="">Kunde wählen...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="entryProject">Projekt</label>
-                            <select id="entryProject" required>
-                                <option value="">Projekt wählen...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="entryTags">Tags (Stichworte)</label>
-                            <input type="text" id="entryTags" placeholder="z.B. meeting, design, review">
-                            <small>Kommagetrennte Stichworte</small>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="entryDescription">Beschreibung</label>
-                            <textarea id="entryDescription" rows="2" placeholder="Was hast du gemacht?"></textarea>
+                        <div class="timer-controls">
+                            <button class="btn btn-primary btn-large" id="startStopBtn" onclick="toggleTimer()">
+                                <span id="timerBtnText">▶ Start</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="resetTimer()">↺ Reset</button>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">+ Eintrag speichern</button>
-                </form>
+
+                    <!-- Quick Access -->
+                    <div class="quick-access-card">
+                        <h3>Zuletzt verwendet</h3>
+                        <div id="recentProjects" class="recent-projects">
+                            <p class="empty-state-small">Noch keine Einträge</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Manual Entry Form -->
+                <div class="time-entry-form">
+                    <h3>Zeiteintrag erstellen</h3>
+                    <form id="timeEntryForm" onsubmit="saveTimeEntry(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="entryDate">Datum</label>
+                                <input type="date" id="entryDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="entryStartTime">Startzeit</label>
+                                <input type="time" id="entryStartTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="entryEndTime">Endzeit</label>
+                                <input type="time" id="entryEndTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="entryClient">Kunde</label>
+                                <select id="entryClient" required onchange="loadProjectsForClient(this.value)">
+                                    <option value="">Kunde wählen...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="entryProject">Projekt</label>
+                                <select id="entryProject" required>
+                                    <option value="">Projekt wählen...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="entryTags">Tags (Stichworte)</label>
+                                <input type="text" id="entryTags" placeholder="z.B. meeting, design, review">
+                                <small>Kommagetrennte Stichworte</small>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="entryDescription">Beschreibung</label>
+                                <textarea id="entryDescription" rows="2" placeholder="Was hast du gemacht?"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">+ Eintrag speichern</button>
+                    </form>
+                </div>
             </div>
 
             <!-- Aktuelle Einträge -->
