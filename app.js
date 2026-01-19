@@ -1139,14 +1139,14 @@ function renderTodayEntries() {
     container.innerHTML = entries.map(entry => {
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
 
         return `
             <div class="entry-card">
                 <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
                 <div class="entry-details">
                     <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
-                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} ${user ? `• ${escapeHtml(user.name)}` : ''}</div>
+                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} • ${escapeHtml(userName)}</div>
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
                     ${normalizeTags(entry.tags).length > 0 ? `
                         <div class="entry-tags">
@@ -1529,14 +1529,14 @@ function updateUserChart(entries) {
     const userHours = {};
 
     entries.forEach(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
-        const userName = user ? user.name : 'Unbekannt';
+        const userName = entry.userName || 'Unbekannt';
         userHours[userName] = (userHours[userName] || 0) + entry.duration;
     });
 
-    const userColors = Object.keys(userHours).map(name => {
-        const user = appData.users.find(u => u.name === name);
-        return user ? user.color : '#9B59B6';
+    // Generate colors for users dynamically
+    const userColors = Object.keys(userHours).map((name, index) => {
+        const colors = ['#9B59B6', '#3498DB', '#E74C3C', '#27AE60', '#F39C12', '#E67E22'];
+        return colors[index % colors.length];
     });
 
     charts.user.data.labels = Object.keys(userHours);
@@ -1557,14 +1557,14 @@ function updateDetailTable(entries) {
     entries.sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
 
     tbody.innerHTML = entries.map(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
 
         return `
             <tr>
                 <td>${formatDate(entry.date)}</td>
-                <td>${user ? escapeHtml(user.name) : '-'}</td>
+                <td>${escapeHtml(userName)}</td>
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
@@ -1639,13 +1639,13 @@ function exportCSV() {
     // Create CSV content
     const headers = ['Datum', 'Benutzer', 'Kunde', 'Projekt', 'Startzeit', 'Endzeit', 'Dauer (Std)', 'Beschreibung', 'Tags'];
     const rows = entries.map(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
 
         return [
             entry.date,
-            user ? user.name : '',
+            userName,
             client ? client.name : '',
             project ? project.name : '',
             entry.startTime,
@@ -1778,7 +1778,7 @@ function exportPDF(type) {
 
     if (includeDetails) {
         const tableData = entries.map(entry => {
-            const user = appData.users.find(u => u.id === entry.userId);
+            const userName = entry.userName || 'Unbekannt';
             const project = appData.projects.find(p => p.id === entry.projectId);
 
             if (type === 'customer') {
@@ -1791,7 +1791,7 @@ function exportPDF(type) {
             } else {
                 return [
                     formatDate(entry.date),
-                    user ? user.name : '-',
+                    userName,
                     project ? project.name : '-',
                     entry.description || '-',
                     formatHours(entry.duration)
