@@ -4,6 +4,29 @@
  */
 
 // ============================================
+// FIREBASE CONFIGURATION & INITIALIZATION
+// ============================================
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBTo1iRnVajuGC0ZdXlolas3OoNzUbsvds",
+    authDomain: "lots-8ce57.firebaseapp.com",
+    projectId: "lots-8ce57",
+    storageBucket: "lots-8ce57.firebasestorage.app",
+    messagingSenderId: "94130371605",
+    appId: "1:94130371605:web:3eb0e1185626196e07221c"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Current user and organization
+let currentFirebaseUser = null;
+let currentOrganization = null;
+let unsubscribeListeners = [];
+
+// ============================================
 // DATA STORAGE
 // ============================================
 
@@ -44,14 +67,418 @@ let charts = {
 };
 
 // ============================================
+// AUTHENTICATION FUNCTIONS
+// ============================================
+
+// Auth State Observer
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        currentFirebaseUser = user;
+        console.log('User logged in:', user.email);
+
+        // Check if user has an organization
+        const userDoc = await db.collection('users').doc(user.uid).get();
+
+        if (!userDoc.exists || !userDoc.data().organizationId) {
+            // Show organization setup
+            showOrgSetup();
+        } else {
+            // Load organization and data
+            const orgId = userDoc.data().organizationId;
+            await loadOrganization(orgId);
+            await loadFirestoreData();
+            showApp();
+        }
+    } else {
+        currentFirebaseUser = null;
+        currentOrganization = null;
+        showAuthScreen();
+    }
+});
+
+function showAuthScreen() {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appContent').style.display = 'none';
+}
+
+function showApp() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    // Update user info in header
+    document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
+    document.getElementById('orgName').textContent = currentOrganization?.name || '';
+
+    initializeApp();
+    setupNavigation();
+    setDefaultDates();
+}
+
+function showOrgSetup() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('orgSetupForm').style.display = 'block';
+}
+
+// Google Sign In
+async function signInWithGoogle() {
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await auth.signInWithPopup(provider);
+    } catch (error) {
+        console.error('Google sign in error:', error);
+        alert('Fehler beim Google Login: ' + error.message);
+    }
+}
+
+// Email/Password Auth
+async function handleEmailAuth(event) {
+    event.preventDefault();
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const isRegister = event.submitter?.dataset?.action === 'register';
+
+    try {
+        if (isRegister) {
+            await auth.createUserWithEmailAndPassword(email, password);
+        } else {
+            await auth.signInWithEmailAndPassword(email, password);
+        }
+    } catch (error) {
+        console.error('Auth error:', error);
+        if (error.code === 'auth/user-not-found') {
+            alert('Benutzer nicht gefunden. Möchtest du dich registrieren?');
+        } else {
+            alert('Fehler: ' + error.message);
+        }
+    }
+}
+
+function switchToRegister() {
+    const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+    if (submitBtn.dataset.action === 'login') {
+        submitBtn.dataset.action = 'register';
+        submitBtn.textContent = 'Registrieren';
+        document.querySelector('#loginForm h3').textContent = 'Registrieren';
+    } else {
+        submitBtn.dataset.action = 'login';
+        submitBtn.textContent = 'Anmelden';
+        document.querySelector('#loginForm h3').textContent = 'Anmelden oder Registrieren';
+    }
+}
+
+// Sign Out
+async function signOut() {
+    try {
+        // Unsubscribe from all Firestore listeners
+        unsubscribeListeners.forEach(unsub => unsub());
+        unsubscribeListeners = [];
+
+        await auth.signOut();
+    } catch (error) {
+        console.error('Sign out error:', error);
+        alert('Fehler beim Abmelden: ' + error.message);
+    }
+}
+
+// ============================================
+// ORGANIZATION FUNCTIONS
+// ============================================
+
+async function createOrganization() {
+    try {
+        const orgName = prompt('Name deiner Organisation:');
+        if (!orgName) return;
+
+        const inviteCode = generateInviteCode();
+
+        const orgRef = await db.collection('organizations').add({
+            name: orgName,
+            members: [currentFirebaseUser.uid],
+            createdBy: currentFirebaseUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Save invite code
+        await db.collection('inviteCodes').doc(inviteCode).set({
+            organizationId: orgRef.id,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Update user document
+        await db.collection('users').doc(currentFirebaseUser.uid).set({
+            email: currentFirebaseUser.email,
+            displayName: currentFirebaseUser.displayName || currentFirebaseUser.email,
+            organizationId: orgRef.id,
+            inviteCode: inviteCode
+        });
+
+        // Load organization
+        await loadOrganization(orgRef.id);
+
+        // Check for local data to migrate
+        checkForLocalDataMigration();
+
+    } catch (error) {
+        console.error('Create organization error:', error);
+        alert('Fehler beim Erstellen der Organisation: ' + error.message);
+    }
+}
+
+async function joinOrganization(event) {
+    event.preventDefault();
+    const code = document.getElementById('inviteCode').value.toUpperCase().trim();
+
+    try {
+        const codeDoc = await db.collection('inviteCodes').doc(code).get();
+
+        if (!codeDoc.exists) {
+            alert('Ungültiger Einladungscode!');
+            return;
+        }
+
+        const orgId = codeDoc.data().organizationId;
+
+        // Add user to organization
+        await db.collection('organizations').doc(orgId).update({
+            members: firebase.firestore.FieldValue.arrayUnion(currentFirebaseUser.uid)
+        });
+
+        // Update user document
+        await db.collection('users').doc(currentFirebaseUser.uid).set({
+            email: currentFirebaseUser.email,
+            displayName: currentFirebaseUser.displayName || currentFirebaseUser.email,
+            organizationId: orgId
+        });
+
+        // Load organization and data
+        await loadOrganization(orgId);
+        await loadFirestoreData();
+        showApp();
+
+    } catch (error) {
+        console.error('Join organization error:', error);
+        alert('Fehler beim Beitreten: ' + error.message);
+    }
+}
+
+async function loadOrganization(orgId) {
+    try {
+        const orgDoc = await db.collection('organizations').doc(orgId).get();
+        if (orgDoc.exists) {
+            currentOrganization = {
+                id: orgDoc.id,
+                ...orgDoc.data()
+            };
+        }
+    } catch (error) {
+        console.error('Load organization error:', error);
+    }
+}
+
+function generateInviteCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'ORG-';
+    for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+// ============================================
+// ORGANIZATION SETTINGS
+// ============================================
+
+async function showOrgSettings() {
+    try {
+        // Load invite code
+        const userDoc = await db.collection('users').doc(currentFirebaseUser.uid).get();
+        const inviteCode = userDoc.data().inviteCode;
+
+        // If no invite code, find it
+        let displayCode = inviteCode;
+        if (!displayCode) {
+            const codesSnapshot = await db.collection('inviteCodes')
+                .where('organizationId', '==', currentOrganization.id)
+                .limit(1)
+                .get();
+
+            if (!codesSnapshot.empty) {
+                displayCode = codesSnapshot.docs[0].id;
+            }
+        }
+
+        document.getElementById('orgSettingsName').textContent = currentOrganization.name;
+        document.getElementById('inviteCodeDisplay').textContent = displayCode || 'N/A';
+
+        // Load members
+        const membersList = document.getElementById('orgMembersList');
+        membersList.innerHTML = '';
+
+        for (const memberId of currentOrganization.members) {
+            const memberDoc = await db.collection('users').doc(memberId).get();
+            if (memberDoc.exists) {
+                const li = document.createElement('li');
+                li.textContent = memberDoc.data().displayName || memberDoc.data().email;
+                membersList.appendChild(li);
+            }
+        }
+
+        openModal('orgSettingsModal');
+    } catch (error) {
+        console.error('Show org settings error:', error);
+        alert('Fehler beim Laden der Einstellungen: ' + error.message);
+    }
+}
+
+function copyInviteCode() {
+    const code = document.getElementById('inviteCodeDisplay').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Einladungscode kopiert!');
+    });
+}
+
+// ============================================
+// FIRESTORE DATA OPERATIONS
+// ============================================
+
+async function loadFirestoreData() {
+    if (!currentOrganization) return;
+
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        // Load clients
+        const clientsSnapshot = await orgRef.collection('clients').get();
+        appData.clients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Load projects
+        const projectsSnapshot = await orgRef.collection('projects').get();
+        appData.projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Load time entries
+        const entriesSnapshot = await orgRef.collection('timeEntries').get();
+        appData.entries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Load users (deprecated - keeping for compatibility)
+        appData.users = [];
+
+        // Extract unique tags from entries
+        const tagsSet = new Set();
+        appData.entries.forEach(entry => {
+            if (entry.tags) {
+                entry.tags.split(',').forEach(tag => tagsSet.add(tag.trim()));
+            }
+        });
+        appData.tags = Array.from(tagsSet);
+
+        console.log('Data loaded from Firestore:', appData);
+
+    } catch (error) {
+        console.error('Load Firestore data error:', error);
+        alert('Fehler beim Laden der Daten: ' + error.message);
+    }
+}
+
+// ============================================
+// DATA MIGRATION FROM LOCALSTORAGE
+// ============================================
+
+function checkForLocalDataMigration() {
+    const hasLocalData = localStorage.getItem(STORAGE_KEYS.CLIENTS) ||
+                        localStorage.getItem(STORAGE_KEYS.PROJECTS) ||
+                        localStorage.getItem(STORAGE_KEYS.ENTRIES);
+
+    if (hasLocalData) {
+        // Count local data
+        const clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
+        const projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]');
+        const entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES) || '[]');
+
+        const info = `${entries.length} Zeiteinträge, ${projects.length} Projekte und ${clients.length} Kunden`;
+        document.getElementById('migrationInfo').textContent = `Du hast lokale Daten: ${info}. Möchtest du diese in die Cloud migrieren?`;
+
+        document.getElementById('orgSetupForm').style.display = 'none';
+        document.getElementById('migrationPrompt').style.display = 'block';
+    } else {
+        // No local data, load Firestore data and show app
+        loadFirestoreData().then(() => showApp());
+    }
+}
+
+function checkLocalDataForMigration() {
+    closeModal('orgSettingsModal');
+    checkForLocalDataMigration();
+}
+
+async function migrateLocalData() {
+    try {
+        const clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
+        const projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]');
+        const entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES) || '[]');
+
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        // Migrate clients
+        for (const client of clients) {
+            await orgRef.collection('clients').doc(client.id).set(client);
+        }
+
+        // Migrate projects
+        for (const project of projects) {
+            await orgRef.collection('projects').doc(project.id).set(project);
+        }
+
+        // Migrate time entries
+        for (const entry of entries) {
+            // Add current user as the creator if not set
+            if (!entry.userId) {
+                entry.userId = currentFirebaseUser.uid;
+                entry.userName = currentFirebaseUser.displayName || currentFirebaseUser.email;
+            }
+            await orgRef.collection('timeEntries').doc(entry.id).set(entry);
+        }
+
+        alert(`Migration erfolgreich! ${entries.length} Einträge, ${projects.length} Projekte und ${clients.length} Kunden wurden migriert.`);
+
+        // Clear localStorage
+        localStorage.removeItem(STORAGE_KEYS.CLIENTS);
+        localStorage.removeItem(STORAGE_KEYS.PROJECTS);
+        localStorage.removeItem(STORAGE_KEYS.ENTRIES);
+        localStorage.removeItem(STORAGE_KEYS.USERS);
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        localStorage.removeItem(STORAGE_KEYS.TAGS);
+
+        // Load Firestore data and show app
+        await loadFirestoreData();
+        showApp();
+
+    } catch (error) {
+        console.error('Migration error:', error);
+        alert('Fehler bei der Migration: ' + error.message);
+    }
+}
+
+function skipMigration() {
+    // Clear localStorage
+    if (confirm('Möchtest du die lokalen Daten wirklich verwerfen?')) {
+        localStorage.removeItem(STORAGE_KEYS.CLIENTS);
+        localStorage.removeItem(STORAGE_KEYS.PROJECTS);
+        localStorage.removeItem(STORAGE_KEYS.ENTRIES);
+        localStorage.removeItem(STORAGE_KEYS.USERS);
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        localStorage.removeItem(STORAGE_KEYS.TAGS);
+
+        loadFirestoreData().then(() => showApp());
+    }
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    initializeApp();
-    setupNavigation();
-    setDefaultDates();
+    // Auth state observer will handle initialization
+    console.log('App loaded, waiting for auth state...');
 });
 
 function initializeApp() {
@@ -66,25 +493,14 @@ function initializeApp() {
     updateCharts();
 }
 
+// Deprecated: Data is now loaded from Firestore via loadFirestoreData()
 function loadData() {
-    appData.users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-    appData.clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS)) || [];
-    appData.projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)) || [];
-    appData.entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES)) || [];
-    appData.tags = JSON.parse(localStorage.getItem(STORAGE_KEYS.TAGS)) || [];
-
-    const savedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (savedUserId) {
-        currentUser = appData.users.find(u => u.id === savedUserId);
-    }
+    // No-op: Kept for backwards compatibility
 }
 
+// Deprecated: Data is now saved to Firestore automatically
 function saveData() {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(appData.users));
-    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(appData.clients));
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(appData.projects));
-    localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(appData.entries));
-    localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(appData.tags));
+    // No-op: Kept for backwards compatibility
 }
 
 function setDefaultDates() {
@@ -250,11 +666,11 @@ function renderClients() {
     filterSelect.innerHTML = clientOptionsAll;
 }
 
-function saveClient(event) {
+async function saveClient(event) {
     event.preventDefault();
 
+    const clientId = generateId();
     const client = {
-        id: generateId(),
         name: document.getElementById('clientName').value.trim(),
         contact: document.getElementById('clientContact').value.trim(),
         email: document.getElementById('clientEmail').value.trim(),
@@ -264,35 +680,65 @@ function saveClient(event) {
         createdAt: new Date().toISOString()
     };
 
-    appData.clients.push(client);
-    saveData();
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('clients').doc(clientId).set(client);
 
-    document.getElementById('clientForm').reset();
-    closeModal('clientModal');
+        // Update local state
+        appData.clients.push({ id: clientId, ...client });
 
-    renderClients();
-    populateExportDropdowns();
-    updateDashboardStats();
+        document.getElementById('clientForm').reset();
+        closeModal('clientModal');
+
+        renderClients();
+        populateExportDropdowns();
+        updateDashboardStats();
+    } catch (error) {
+        console.error('Save client error:', error);
+        alert('Fehler beim Speichern des Kunden: ' + error.message);
+    }
 }
 
-function deleteClient(clientId) {
+async function deleteClient(clientId) {
     if (!confirm('Möchtest du diesen Kunden wirklich löschen? Alle zugehörigen Projekte und Zeiteinträge werden ebenfalls gelöscht!')) {
         return;
     }
 
-    // Delete associated projects and entries
-    const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
-    appData.entries = appData.entries.filter(e => !projectIds.includes(e.projectId));
-    appData.projects = appData.projects.filter(p => p.clientId !== clientId);
-    appData.clients = appData.clients.filter(c => c.id !== clientId);
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
-    saveData();
-    renderClients();
-    renderProjects();
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateExportDropdowns();
+        // Delete associated projects and entries
+        const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
+
+        // Delete entries
+        for (const entry of appData.entries.filter(e => projectIds.includes(e.projectId))) {
+            await orgRef.collection('timeEntries').doc(entry.id).delete();
+        }
+
+        // Delete projects
+        for (const projectId of projectIds) {
+            await orgRef.collection('projects').doc(projectId).delete();
+        }
+
+        // Delete client
+        await orgRef.collection('clients').doc(clientId).delete();
+
+        // Update local state
+        appData.entries = appData.entries.filter(e => !projectIds.includes(e.projectId));
+        appData.projects = appData.projects.filter(p => p.clientId !== clientId);
+        appData.clients = appData.clients.filter(c => c.id !== clientId);
+
+        renderClients();
+        renderProjects();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateExportDropdowns();
+    } catch (error) {
+        console.error('Delete client error:', error);
+        alert('Fehler beim Löschen des Kunden: ' + error.message);
+    }
 }
 
 function editClient(clientId) {
@@ -326,6 +772,10 @@ function renderProjects() {
             const budgetPercent = project.budgetHours ? Math.min(100, (totalHours / project.budgetHours) * 100) : 0;
             const budgetClass = budgetPercent > 90 ? 'danger' : budgetPercent > 75 ? 'warning' : '';
 
+            const effectiveRate = project.hourlyRate !== null && project.hourlyRate !== undefined
+                ? project.hourlyRate
+                : (client ? client.hourlyRate : 0);
+
             return `
                 <div class="card">
                     <div class="card-header">
@@ -339,6 +789,7 @@ function renderProjects() {
                         ${project.description ? `<p style="margin-bottom: var(--spacing-md);">${escapeHtml(project.description)}</p>` : ''}
                         <div class="card-meta">
                             <span>⏱️ ${formatHours(totalHours)} erfasst${project.budgetHours ? ` / ${formatHours(project.budgetHours)} Budget` : ''}</span>
+                            ${effectiveRate > 0 ? `<span>💰 ${effectiveRate.toFixed(2)}€/Std.${project.hourlyRate !== null && project.hourlyRate !== undefined ? ' (Projekt)' : ''}</span>` : ''}
                             ${project.deadline ? `<span>📅 Deadline: ${formatDate(project.deadline)}</span>` : ''}
                         </div>
                         ${project.budgetHours ? `
@@ -364,45 +815,71 @@ function renderProjects() {
         }).join('');
 }
 
-function saveProject(event) {
+async function saveProject(event) {
     event.preventDefault();
 
+    const projectId = generateId();
+    const hourlyRateValue = document.getElementById('projectHourlyRate').value;
     const project = {
-        id: generateId(),
         clientId: document.getElementById('projectClient').value,
         name: document.getElementById('projectName').value.trim(),
         description: document.getElementById('projectDescription').value.trim(),
         budgetHours: parseFloat(document.getElementById('projectBudgetHours').value) || 0,
+        hourlyRate: hourlyRateValue ? parseFloat(hourlyRateValue) : null,
         deadline: document.getElementById('projectDeadline').value,
         status: document.getElementById('projectStatus').value,
         createdAt: new Date().toISOString()
     };
 
-    appData.projects.push(project);
-    saveData();
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('projects').doc(projectId).set(project);
 
-    document.getElementById('projectForm').reset();
-    closeModal('projectModal');
+        // Update local state
+        appData.projects.push({ id: projectId, ...project });
 
-    renderProjects();
-    populateExportDropdowns();
-    updateDashboardStats();
+        document.getElementById('projectForm').reset();
+        closeModal('projectModal');
+
+        renderProjects();
+        populateExportDropdowns();
+        updateDashboardStats();
+    } catch (error) {
+        console.error('Save project error:', error);
+        alert('Fehler beim Speichern des Projekts: ' + error.message);
+    }
 }
 
-function deleteProject(projectId) {
+async function deleteProject(projectId) {
     if (!confirm('Möchtest du dieses Projekt wirklich löschen? Alle zugehörigen Zeiteinträge werden ebenfalls gelöscht!')) {
         return;
     }
 
-    appData.entries = appData.entries.filter(e => e.projectId !== projectId);
-    appData.projects = appData.projects.filter(p => p.id !== projectId);
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
-    saveData();
-    renderProjects();
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateExportDropdowns();
+        // Delete entries
+        for (const entry of appData.entries.filter(e => e.projectId === projectId)) {
+            await orgRef.collection('timeEntries').doc(entry.id).delete();
+        }
+
+        // Delete project
+        await orgRef.collection('projects').doc(projectId).delete();
+
+        // Update local state
+        appData.entries = appData.entries.filter(e => e.projectId !== projectId);
+        appData.projects = appData.projects.filter(p => p.id !== projectId);
+
+        renderProjects();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateExportDropdowns();
+    } catch (error) {
+        console.error('Delete project error:', error);
+        alert('Fehler beim Löschen des Projekts: ' + error.message);
+    }
 }
 
 function editProject(projectId) {
@@ -507,11 +984,11 @@ function updateTimerDisplay() {
 // TIME ENTRIES
 // ============================================
 
-function saveTimeEntry(event) {
+async function saveTimeEntry(event) {
     event.preventDefault();
 
-    if (!currentUser) {
-        alert('Bitte wähle zuerst einen Benutzer aus!');
+    if (!currentFirebaseUser) {
+        alert('Bitte melde dich an!');
         return;
     }
 
@@ -520,7 +997,8 @@ function saveTimeEntry(event) {
     const endTime = document.getElementById('entryEndTime').value;
     const clientId = document.getElementById('entryClient').value;
     const projectId = document.getElementById('entryProject').value;
-    const tags = document.getElementById('entryTags').value
+    const tagsInput = document.getElementById('entryTags').value;
+    const tagsArray = tagsInput
         .split(',')
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
@@ -536,40 +1014,49 @@ function saveTimeEntry(event) {
         return;
     }
 
+    const entryId = generateId();
     const entry = {
-        id: generateId(),
-        userId: currentUser.id,
+        userId: currentFirebaseUser.uid,
+        userName: currentFirebaseUser.displayName || currentFirebaseUser.email,
         clientId: clientId,
         projectId: projectId,
         date: date,
         startTime: startTime,
         endTime: endTime,
         duration: duration,
-        tags: tags,
+        tags: tagsInput,
         description: description,
         createdAt: new Date().toISOString()
     };
 
-    appData.entries.push(entry);
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).set(entry);
 
-    // Add new tags to global tags list
-    tags.forEach(tag => {
-        if (!appData.tags.includes(tag)) {
-            appData.tags.push(tag);
-        }
-    });
+        // Update local state
+        appData.entries.push({ id: entryId, ...entry });
 
-    saveData();
+        // Add new tags to global tags list
+        tagsArray.forEach(tag => {
+            if (!appData.tags.includes(tag)) {
+                appData.tags.push(tag);
+            }
+        });
 
-    // Reset form
-    document.getElementById('timeEntryForm').reset();
-    document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-    resetTimer();
+        // Reset form
+        document.getElementById('timeEntryForm').reset();
+        document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+        resetTimer();
 
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateFilterDropdowns();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateFilterDropdowns();
+    } catch (error) {
+        console.error('Save time entry error:', error);
+        alert('Fehler beim Speichern des Zeiteintrags: ' + error.message);
+    }
 }
 
 function renderTodayEntries() {
@@ -637,7 +1124,7 @@ function editEntry(entryId) {
     openModal('editEntryModal');
 }
 
-function updateTimeEntry(event) {
+async function updateTimeEntry(event) {
     event.preventDefault();
 
     const entryId = document.getElementById('editEntryId').value;
@@ -657,46 +1144,71 @@ function updateTimeEntry(event) {
         return;
     }
 
-    entry.date = date;
-    entry.startTime = startTime;
-    entry.endTime = endTime;
-    entry.duration = duration;
-    entry.clientId = document.getElementById('editEntryClient').value;
-    entry.projectId = document.getElementById('editEntryProject').value;
-    entry.tags = document.getElementById('editEntryTags').value
+    const tagsInput = document.getElementById('editEntryTags').value;
+    const tagsArray = tagsInput
         .split(',')
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
-    entry.description = document.getElementById('editEntryDescription').value.trim();
 
-    // Add new tags
-    entry.tags.forEach(tag => {
-        if (!appData.tags.includes(tag)) {
-            appData.tags.push(tag);
-        }
-    });
+    const updates = {
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        clientId: document.getElementById('editEntryClient').value,
+        projectId: document.getElementById('editEntryProject').value,
+        tags: tagsInput,
+        description: document.getElementById('editEntryDescription').value.trim()
+    };
 
-    saveData();
-    closeModal('editEntryModal');
+    try {
+        // Update in Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).update(updates);
 
-    renderTodayEntries();
-    renderProjects();
-    updateDashboardStats();
-    updateCharts();
+        // Update local state
+        Object.assign(entry, updates);
+
+        // Add new tags
+        tagsArray.forEach(tag => {
+            if (!appData.tags.includes(tag)) {
+                appData.tags.push(tag);
+            }
+        });
+
+        closeModal('editEntryModal');
+
+        renderTodayEntries();
+        renderProjects();
+        updateDashboardStats();
+        updateCharts();
+    } catch (error) {
+        console.error('Update time entry error:', error);
+        alert('Fehler beim Aktualisieren des Eintrags: ' + error.message);
+    }
 }
 
-function deleteEntry(entryId) {
+async function deleteEntry(entryId) {
     if (!confirm('Möchtest du diesen Eintrag wirklich löschen?')) {
         return;
     }
 
-    appData.entries = appData.entries.filter(e => e.id !== entryId);
-    saveData();
+    try {
+        // Delete from Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).delete();
 
-    renderTodayEntries();
-    renderProjects();
-    updateDashboardStats();
-    updateCharts();
+        // Update local state
+        appData.entries = appData.entries.filter(e => e.id !== entryId);
+
+        renderTodayEntries();
+        renderProjects();
+        updateDashboardStats();
+        updateCharts();
+    } catch (error) {
+        console.error('Delete entry error:', error);
+        alert('Fehler beim Löschen des Eintrags: ' + error.message);
+    }
 }
 
 // ============================================
@@ -1182,7 +1694,19 @@ function exportPDF(type) {
     // Summary
     const totalHours = entries.reduce((sum, e) => sum + e.duration, 0);
     const client = clientId ? appData.clients.find(c => c.id === clientId) : null;
-    const totalCost = client && client.hourlyRate ? totalHours * client.hourlyRate : 0;
+
+    // Calculate total cost considering project-specific hourly rates
+    const totalCost = entries.reduce((sum, entry) => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const entryClient = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        // Use project hourly rate if available, otherwise use client hourly rate
+        const hourlyRate = (project && project.hourlyRate !== null && project.hourlyRate !== undefined)
+            ? project.hourlyRate
+            : (entryClient ? entryClient.hourlyRate || 0 : 0);
+
+        return sum + (entry.duration * hourlyRate);
+    }, 0);
 
     doc.setFontSize(12);
     doc.setTextColor(44, 62, 80);

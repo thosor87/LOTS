@@ -11,8 +11,93 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <!-- Auth Screen (shown when not logged in) -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <span class="logo-icon">◆</span>
+                <span class="logo-text">LOTS</span>
+            </div>
+            <h2>LexOffice Time Scheduling</h2>
+
+            <!-- Login/Register Form -->
+            <div id="loginForm" class="auth-form">
+                <h3>Anmelden oder Registrieren</h3>
+
+                <button class="btn btn-google" onclick="signInWithGoogle()">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                        <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9.003 18z" fill="#34A853"/>
+                        <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                        <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+                    </svg>
+                    Mit Google anmelden
+                </button>
+
+                <div class="auth-divider">
+                    <span>oder</span>
+                </div>
+
+                <form onsubmit="handleEmailAuth(event)">
+                    <div class="form-group">
+                        <label for="authEmail">E-Mail</label>
+                        <input type="email" id="authEmail" required placeholder="deine@email.de">
+                    </div>
+                    <div class="form-group">
+                        <label for="authPassword">Passwort</label>
+                        <input type="password" id="authPassword" required placeholder="Mindestens 6 Zeichen">
+                    </div>
+                    <div class="auth-buttons">
+                        <button type="submit" class="btn btn-primary" data-action="login">Anmelden</button>
+                        <button type="button" class="btn btn-secondary" onclick="switchToRegister()">Registrieren</button>
+                    </div>
+                </form>
+
+                <p class="auth-note">
+                    <small>Lokale Daten migrieren? Nach der Anmeldung verfügbar.</small>
+                </p>
+            </div>
+
+            <!-- Organization Setup (shown after first login) -->
+            <div id="orgSetupForm" class="auth-form" style="display: none;">
+                <h3>Organisation einrichten</h3>
+                <p>Möchtest du eine neue Organisation erstellen oder einer bestehenden beitreten?</p>
+
+                <button class="btn btn-primary" onclick="createOrganization()">Neue Organisation erstellen</button>
+
+                <div class="auth-divider">
+                    <span>oder</span>
+                </div>
+
+                <form onsubmit="joinOrganization(event)">
+                    <div class="form-group">
+                        <label for="inviteCode">Einladungscode</label>
+                        <input type="text" id="inviteCode" required placeholder="z.B. FIRM-2K8X" style="text-transform: uppercase;">
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Organisation beitreten</button>
+                </form>
+            </div>
+
+            <!-- Migration Prompt (shown after org setup if localStorage has data) -->
+            <div id="migrationPrompt" class="auth-form" style="display: none;">
+                <h3>Lokale Daten gefunden</h3>
+                <p id="migrationInfo">Du hast lokale Daten gespeichert. Möchtest du diese in die Cloud migrieren?</p>
+
+                <div class="auth-buttons">
+                    <button class="btn btn-primary" onclick="migrateLocalData()">Ja, Daten migrieren</button>
+                    <button class="btn btn-secondary" onclick="skipMigration()">Nein, neu starten</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="header">
         <div class="header-content">
@@ -29,15 +114,18 @@
                 <a href="#export" class="nav-link">Export</a>
             </nav>
             <div class="user-menu">
-                <select id="currentUser" class="user-select" onchange="switchUser(this.value)">
-                    <option value="">Benutzer wählen...</option>
-                </select>
-                <button class="btn btn-small btn-secondary" onclick="openModal('userModal')">+ Benutzer</button>
+                <div id="userInfo" class="user-info">
+                    <span id="currentUserName" class="user-name"></span>
+                    <span id="orgName" class="org-name"></span>
+                </div>
+                <button class="btn btn-small btn-secondary" onclick="showOrgSettings()">⚙ Einstellungen</button>
+                <button class="btn btn-small btn-secondary" onclick="signOut()">Abmelden</button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Main Content (hidden until logged in) -->
+    <div id="appContent" style="display: none;">
     <main class="main">
         <!-- Hero Section -->
         <section class="hero" id="dashboard">
@@ -328,9 +416,11 @@
                 <span class="logo-icon">◆</span> LOTS
             </div>
             <p>Self-Made with 🤍 and AI</p>
-            <p class="footer-note">Daten werden lokal im Browser gespeichert (LocalStorage)</p>
+            <p class="footer-note">Daten werden sicher in der Cloud gespeichert (Firebase)</p>
         </div>
     </footer>
+    </div>
+    <!-- End appContent -->
 
     <!-- Modals -->
     <!-- Client Modal -->
@@ -445,6 +535,39 @@
                     <button type="submit" class="btn btn-primary">Speichern</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Organization Settings Modal -->
+    <div class="modal" id="orgSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Organisations-Einstellungen</h3>
+                <button class="modal-close" onclick="closeModal('orgSettingsModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="org-info">
+                    <h4>Organisation</h4>
+                    <p id="orgSettingsName" class="org-detail"></p>
+
+                    <h4>Einladungscode</h4>
+                    <div class="invite-code-display">
+                        <code id="inviteCodeDisplay" class="invite-code"></code>
+                        <button class="btn btn-small btn-secondary" onclick="copyInviteCode()">Kopieren</button>
+                    </div>
+                    <p class="form-note">Teile diesen Code mit Kollegen, damit sie beitreten können.</p>
+
+                    <h4>Mitglieder</h4>
+                    <ul id="orgMembersList" class="members-list"></ul>
+
+                    <h4>Datenmigration</h4>
+                    <button class="btn btn-secondary" onclick="checkLocalDataForMigration()">Lokale Daten zu Cloud migrieren</button>
+                    <p class="form-note">Falls du lokale Daten hast, die noch nicht migriert wurden.</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('orgSettingsModal')">Schließen</button>
+            </div>
         </div>
     </div>
 
