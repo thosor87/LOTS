@@ -23,6 +23,9 @@
 
     <!-- Auth Screen (shown when not logged in) -->
     <div id="authScreen" class="auth-screen">
+        <button class="btn btn-small btn-secondary" onclick="toggleDarkMode()" id="darkModeToggleAuth" title="Dark Mode umschalten" style="position: absolute; top: 20px; right: 20px;">
+            <span id="darkModeIconAuth">🌙</span>
+        </button>
         <div class="auth-container">
             <div class="auth-logo">
                 <span class="logo-icon">◆</span>
@@ -88,6 +91,9 @@
                     <span id="currentUserName" class="user-name"></span>
                     <span id="orgName" class="org-name"></span>
                 </div>
+                <button class="btn btn-small btn-secondary" onclick="toggleDarkMode()" id="darkModeToggle" title="Dark Mode umschalten">
+                    <span id="darkModeIcon">🌙</span>
+                </button>
                 <button class="btn btn-small btn-secondary" onclick="showOrgSettings()">⚙ Einstellungen</button>
                 <button class="btn btn-small btn-secondary" onclick="signOut()">Abmelden</button>
             </div>
