@@ -439,6 +439,21 @@ async function saveUserColor() {
     }
 }
 
+async function leaveOrganization() {
+    const confirmed = confirm('Möchtest du die Organisation wirklich verlassen? Du bleibst Mitglied und kannst dich jederzeit wieder einloggen.');
+
+    if (confirmed) {
+        try {
+            closeModal('orgSettingsModal');
+            await signOut();
+            showNotification('Erfolgreich abgemeldet', 'success');
+        } catch (error) {
+            console.error('Leave organization error:', error);
+            showNotification('Fehler beim Verlassen: ' + error.message, 'error');
+        }
+    }
+}
+
 // ============================================
 // FIRESTORE DATA OPERATIONS
 // ============================================
