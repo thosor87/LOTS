@@ -1571,15 +1571,17 @@ function renderTodayEntries() {
         return;
     }
 
-    entries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    // Sort by start time descending (newest first)
+    entries.sort((a, b) => b.startTime.localeCompare(a.startTime));
 
     container.innerHTML = entries.map(entry => {
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
         const userName = entry.userName || 'Unbekannt';
+        const bgColor = getUserBackgroundColor(entry.userId);
 
         return `
-            <div class="entry-card">
+            <div class="entry-card" style="background-color: ${bgColor};">
                 <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
                 <div class="entry-details">
                     <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
@@ -2136,9 +2138,10 @@ function updateDetailTable(entries) {
         const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+        const bgColor = getUserBackgroundColor(entry.userId);
 
         return `
-            <tr>
+            <tr style="background-color: ${bgColor};">
                 <td>${formatDate(entry.date)}</td>
                 <td>${escapeHtml(userName)}</td>
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
@@ -2598,6 +2601,16 @@ function generateColors(count) {
     return colors;
 }
 
+function getUserBackgroundColor(userId) {
+    const color = appData.userColors[userId] || '#9B59B6'; // Default purple
+    // Convert hex to RGB and add alpha
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.1)`; // 10% opacity
+}
+
 // ============================================
 // TODAY ENTRIES VIEW TOGGLE
 // ============================================
@@ -2647,6 +2660,7 @@ function renderTodayCalendar() {
     entries.forEach(entry => {
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+        const bgColor = getUserBackgroundColor(entry.userId);
 
         // Calculate position and height
         const [startH, startM] = entry.startTime.split(':').map(Number);
@@ -2656,7 +2670,7 @@ function renderTodayCalendar() {
         const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100; // 6:00 - 22:00 = 16 hours
         const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
 
-        html += '<div class="timeline-entry" style="top: ' + top + '%; height: ' + height + '%;">';
+        html += '<div class="timeline-entry" style="top: ' + top + '%; height: ' + height + '%; background-color: ' + bgColor + ';">';
         html += '<div class="timeline-entry-time">' + entry.startTime + ' - ' + entry.endTime + '</div>';
         html += '<div class="timeline-entry-project">' + (project ? escapeHtml(project.name) : 'Unbekannt') + '</div>';
         html += '<div class="timeline-entry-client">' + (client ? escapeHtml(client.name) : '') + '</div>';
@@ -2809,6 +2823,7 @@ function renderDetailWeekView() {
         html += '<div class="week-timeline-entries">';
         dayEntries.forEach(entry => {
             const project = appData.projects.find(p => p.id === entry.projectId);
+            const bgColor = getUserBackgroundColor(entry.userId);
             const [startH, startM] = entry.startTime.split(':').map(Number);
             const [endH, endM] = entry.endTime.split(':').map(Number);
             const startMinutes = startH * 60 + startM;
@@ -2816,7 +2831,7 @@ function renderDetailWeekView() {
             const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100;
             const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
 
-            html += '<div class="week-timeline-entry" style="top: ' + top + '%; height: ' + height + '%;" title="' + (project ? project.name : '') + '">';
+            html += '<div class="week-timeline-entry" style="top: ' + top + '%; height: ' + height + '%; background-color: ' + bgColor + ';" title="' + (project ? project.name : '') + '">';
             html += '<div class="week-entry-time">' + entry.startTime.substring(0, 5) + '</div>';
             html += '<div class="week-entry-project">' + (project ? escapeHtml(project.name).substring(0, 15) : '?') + '</div>';
             html += '</div>';
