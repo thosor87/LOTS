@@ -49,7 +49,8 @@ let appData = {
     clients: [],
     projects: [],
     entries: [],
-    tags: []
+    tags: [],
+    userColors: {} // Map userId -> color
 };
 
 let currentUser = null; // Deprecated: Now using currentFirebaseUser
@@ -385,6 +386,26 @@ async function loadFirestoreData() {
             }
         });
         appData.tags = Array.from(tagsSet);
+
+        // Load user colors from entries
+        const uniqueUserIds = new Set();
+        appData.entries.forEach(entry => {
+            if (entry.userId) {
+                uniqueUserIds.add(entry.userId);
+            }
+        });
+
+        appData.userColors = {};
+        for (const userId of uniqueUserIds) {
+            try {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists && userDoc.data().color) {
+                    appData.userColors[userId] = userDoc.data().color;
+                }
+            } catch (error) {
+                console.warn(`Could not load color for user ${userId}:`, error);
+            }
+        }
 
         console.log('Data loaded successfully from Firestore');
 
@@ -1556,16 +1577,26 @@ function updateTagChart(entries) {
 
 function updateUserChart(entries) {
     const userHours = {};
+    const userIdMap = {}; // Map userName -> userId
 
     entries.forEach(entry => {
         const userName = entry.userName || 'Unbekannt';
+        const userId = entry.userId;
+
         userHours[userName] = (userHours[userName] || 0) + entry.duration;
+        if (userId) {
+            userIdMap[userName] = userId;
+        }
     });
 
-    // Generate colors for users dynamically
-    const userColors = Object.keys(userHours).map((name, index) => {
-        const colors = ['#9B59B6', '#3498DB', '#E74C3C', '#27AE60', '#F39C12', '#E67E22'];
-        return colors[index % colors.length];
+    // Use individual user colors or fall back to default colors
+    const defaultColors = ['#9B59B6', '#3498DB', '#E74C3C', '#27AE60', '#F39C12', '#E67E22'];
+    const userColors = Object.keys(userHours).map((userName, index) => {
+        const userId = userIdMap[userName];
+        if (userId && appData.userColors[userId]) {
+            return appData.userColors[userId];
+        }
+        return defaultColors[index % defaultColors.length];
     });
 
     charts.user.data.labels = Object.keys(userHours);
