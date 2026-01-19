@@ -1989,20 +1989,20 @@ a:hover {
     justify-content: space-between;
     width: 40px;
     height: 40px;
-    background: var(--primary);
-    border: 2px solid var(--primary);
+    background: #660066; /* LILAPIXEL Purple */
+    border: 2px solid #660066;
     border-radius: 8px;
     cursor: pointer;
     padding: 8px;
     z-index: 1001;
     position: relative;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     transition: all 0.2s ease;
 }
 
 .burger-menu:hover {
-    background: var(--primary-dark);
-    border-color: var(--primary-dark);
+    background: #4a004a; /* Darker purple */
+    border-color: #4a004a;
     transform: scale(1.05);
 }
 
@@ -2010,9 +2010,10 @@ a:hover {
     display: block;
     width: 100%;
     height: 3px;
-    background: white;
+    background: #FFFFFF;
     border-radius: 3px;
     transition: all 0.3s ease;
+    /* White bars on purple background */
 }
 
 .burger-menu.active span:nth-child(1) {
