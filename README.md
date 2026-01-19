@@ -259,7 +259,7 @@ Wenn Sie die Software nutzen möchten **ohne** den Quellcode zu veröffentlichen
 - Closed-Source-Nutzung möglich
 - Keine Verpflichtung zur Code-Veröffentlichung
 
-**Kontakt für kommerzielle Lizenzierung**: [Deine Kontaktdaten hier einfügen]
+**Kontakt für kommerzielle Lizenzierung**: https://www.lilapixel.de
 
 ---
 
