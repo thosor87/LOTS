@@ -1925,6 +1925,18 @@ function populateFilterDropdowns() {
         Array.from(uniqueUsers.entries())
             .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
             .join('');
+
+    // Populate tags suggestions for autocomplete
+    populateTagsSuggestions();
+}
+
+function populateTagsSuggestions() {
+    const datalist = document.getElementById('tagsSuggestions');
+    if (!datalist) return;
+
+    datalist.innerHTML = appData.tags
+        .map(tag => `<option value="${escapeHtml(tag)}">`)
+        .join('');
 }
 
 function populateExportDropdowns() {
@@ -2285,4 +2297,74 @@ function generateColors(count) {
         colors.push(baseColors[i % baseColors.length]);
     }
     return colors;
+}
+
+// ============================================
+// TODAY ENTRIES VIEW TOGGLE
+// ============================================
+
+function switchTodayView(view) {
+    const listView = document.getElementById('todayEntries');
+    const calendarView = document.getElementById('todayCalendar');
+    const listBtn = document.getElementById('listViewBtn');
+    const calendarBtn = document.getElementById('calendarViewBtn');
+
+    if (view === 'list') {
+        listView.style.display = 'flex';
+        calendarView.style.display = 'none';
+        listBtn.classList.add('active');
+        calendarBtn.classList.remove('active');
+    } else {
+        listView.style.display = 'none';
+        calendarView.style.display = 'block';
+        listBtn.classList.remove('active');
+        calendarBtn.classList.add('active');
+        renderTodayCalendar();
+    }
+}
+
+function renderTodayCalendar() {
+    const container = document.getElementById('todayCalendar');
+    const today = new Date().toISOString().split('T')[0];
+    let entries = appData.entries.filter(e => e.date === today);
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
+        return;
+    }
+
+    // Sort by start time
+    entries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Generate timeline (6:00 - 22:00)
+    let html = '<div class="timeline-container">';
+    html += '<div class="timeline-hours">';
+    for (let h = 6; h <= 22; h++) {
+        html += '<div class="timeline-hour">' + String(h).padStart(2, '0') + ':00</div>';
+    }
+    html += '</div>';
+    html += '<div class="timeline-entries">';
+
+    entries.forEach(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        // Calculate position and height
+        const [startH, startM] = entry.startTime.split(':').map(Number);
+        const [endH, endM] = entry.endTime.split(':').map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100; // 6:00 - 22:00 = 16 hours
+        const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+
+        html += '<div class="timeline-entry" style="top: ' + top + '%; height: ' + height + '%;">';
+        html += '<div class="timeline-entry-time">' + entry.startTime + ' - ' + entry.endTime + '</div>';
+        html += '<div class="timeline-entry-project">' + (project ? escapeHtml(project.name) : 'Unbekannt') + '</div>';
+        html += '<div class="timeline-entry-client">' + (client ? escapeHtml(client.name) : '') + '</div>';
+        html += '<div class="timeline-entry-duration">' + formatHours(entry.duration) + '</div>';
+        html += '</div>';
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
 }

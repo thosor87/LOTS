@@ -193,7 +193,8 @@
                             </div>
                             <div class="form-group">
                                 <label for="entryTags">Tags (Stichworte)</label>
-                                <input type="text" id="entryTags" placeholder="z.B. meeting, design, review">
+                                <input type="text" id="entryTags" list="tagsSuggestions" placeholder="z.B. meeting, design, review">
+                                <datalist id="tagsSuggestions"></datalist>
                                 <small>Kommagetrennte Stichworte</small>
                             </div>
                             <div class="form-group full-width">
@@ -208,8 +209,21 @@
 
             <!-- Aktuelle Einträge -->
             <div class="entries-list">
-                <h3>Heutige Einträge</h3>
+                <div class="entries-header">
+                    <h3>Heutige Einträge</h3>
+                    <div class="view-toggle">
+                        <button class="btn btn-small btn-secondary active" id="listViewBtn" onclick="switchTodayView('list')">
+                            ≡ Liste
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="calendarViewBtn" onclick="switchTodayView('calendar')">
+                            📅 Kalender
+                        </button>
+                    </div>
+                </div>
                 <div id="todayEntries" class="entries-container">
+                    <p class="empty-state">Noch keine Einträge für heute ✦</p>
+                </div>
+                <div id="todayCalendar" class="calendar-timeline" style="display: none;">
                     <p class="empty-state">Noch keine Einträge für heute ✦</p>
                 </div>
             </div>
@@ -619,7 +633,7 @@
                     </div>
                     <div class="form-group">
                         <label for="editEntryTags">Tags</label>
-                        <input type="text" id="editEntryTags" placeholder="z.B. meeting, design">
+                        <input type="text" id="editEntryTags" list="tagsSuggestions" placeholder="z.B. meeting, design">
                     </div>
                     <div class="form-group full-width">
                         <label for="editEntryDescription">Beschreibung</label>
