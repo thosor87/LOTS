@@ -2368,3 +2368,165 @@ function renderTodayCalendar() {
     html += '</div></div>';
     container.innerHTML = html;
 }
+
+// ============================================
+// DETAIL VIEW TOGGLE & CALENDAR
+// ============================================
+
+function switchDetailView(view) {
+    const tableView = document.getElementById('detailTableView');
+    const monthView = document.getElementById('detailMonthView');
+    const weekView = document.getElementById('detailWeekView');
+    const tableBtn = document.getElementById('detailTableViewBtn');
+    const monthBtn = document.getElementById('detailMonthViewBtn');
+    const weekBtn = document.getElementById('detailWeekViewBtn');
+
+    // Hide all views
+    tableView.style.display = 'none';
+    monthView.style.display = 'none';
+    weekView.style.display = 'none';
+
+    // Remove active from all buttons
+    tableBtn.classList.remove('active');
+    monthBtn.classList.remove('active');
+    weekBtn.classList.remove('active');
+
+    // Show selected view
+    if (view === 'table') {
+        tableView.style.display = 'block';
+        tableBtn.classList.add('active');
+    } else if (view === 'month') {
+        monthView.style.display = 'block';
+        monthBtn.classList.add('active');
+        renderDetailMonthView();
+    } else if (view === 'week') {
+        weekView.style.display = 'block';
+        weekBtn.classList.add('active');
+        renderDetailWeekView();
+    }
+}
+
+function renderDetailMonthView() {
+    const container = document.getElementById('detailMonthView');
+    const entries = getFilteredEntries();
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Keine Einträge im ausgewählten Zeitraum</p>';
+        return;
+    }
+
+    // Determine month range
+    const dates = entries.map(e => e.date).sort();
+    const startDate = new Date(dates[0]);
+    const endDate = new Date(dates[dates.length - 1]);
+
+    // Get first day of start month
+    const year = startDate.getFullYear();
+    const month = startDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    // Get day of week for first day (0 = Sunday, adjust to Monday = 0)
+    let startDayOfWeek = firstDay.getDay();
+    startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const monthName = firstDay.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+    let html = '<div class="month-calendar">';
+    html += '<div class="month-header">' + monthName + '</div>';
+    html += '<div class="calendar-grid">';
+
+    // Weekday headers
+    const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    weekdays.forEach(day => {
+        html += '<div class="calendar-weekday">' + day + '</div>';
+    });
+
+    // Empty cells before first day
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+
+    // Days of month
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const dayEntries = entries.filter(e => e.date === dateStr);
+        const totalHours = dayEntries.reduce((sum, e) => sum + e.duration, 0);
+
+        html += '<div class="calendar-day' + (dayEntries.length > 0 ? ' has-entries' : '') + '">';
+        html += '<div class="day-number">' + day + '</div>';
+        if (dayEntries.length > 0) {
+            html += '<div class="day-hours">' + formatHours(totalHours) + '</div>';
+            html += '<div class="day-entries-count">' + dayEntries.length + ' ' + (dayEntries.length === 1 ? 'Eintrag' : 'Einträge') + '</div>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+function renderDetailWeekView() {
+    const container = document.getElementById('detailWeekView');
+    const entries = getFilteredEntries();
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Keine Einträge im ausgewählten Zeitraum</p>';
+        return;
+    }
+
+    // Get current week or first week with entries
+    const dates = entries.map(e => e.date).sort();
+    const startDate = new Date(dates[0]);
+
+    // Get Monday of the week
+    const dayOfWeek = startDate.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(startDate);
+    monday.setDate(startDate.getDate() + diff);
+
+    let html = '<div class="week-timeline-container">';
+
+    // Week days
+    for (let i = 0; i < 7; i++) {
+        const currentDay = new Date(monday);
+        currentDay.setDate(monday.getDate() + i);
+        const dateStr = currentDay.toISOString().split('T')[0];
+        const dayName = currentDay.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+        const dayEntries = entries.filter(e => e.date === dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        html += '<div class="week-day-column">';
+        html += '<div class="week-day-header">' + dayName + '</div>';
+        html += '<div class="week-day-timeline">';
+
+        // Timeline hours (6:00 - 22:00)
+        html += '<div class="week-timeline-hours">';
+        for (let h = 6; h <= 22; h++) {
+            html += '<div class="week-timeline-hour">' + String(h).padStart(2, '0') + '</div>';
+        }
+        html += '</div>';
+
+        // Entries
+        html += '<div class="week-timeline-entries">';
+        dayEntries.forEach(entry => {
+            const project = appData.projects.find(p => p.id === entry.projectId);
+            const [startH, startM] = entry.startTime.split(':').map(Number);
+            const [endH, endM] = entry.endTime.split(':').map(Number);
+            const startMinutes = startH * 60 + startM;
+            const endMinutes = endH * 60 + endM;
+            const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100;
+            const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+
+            html += '<div class="week-timeline-entry" style="top: ' + top + '%; height: ' + height + '%;" title="' + (project ? project.name : '') + '">';
+            html += '<div class="week-entry-time">' + entry.startTime.substring(0, 5) + '</div>';
+            html += '<div class="week-entry-project">' + (project ? escapeHtml(project.name).substring(0, 15) : '?') + '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+
+        html += '</div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}

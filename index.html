@@ -333,23 +333,44 @@
 
             <!-- Detailtabelle -->
             <div class="detail-table-container">
-                <h3>Detaillierte Auflistung</h3>
-                <table class="detail-table" id="detailTable">
-                    <thead>
-                        <tr>
-                            <th>Datum</th>
-                            <th>Benutzer</th>
-                            <th>Kunde</th>
-                            <th>Projekt</th>
-                            <th>Beschreibung</th>
-                            <th>Tags</th>
-                            <th>Dauer</th>
-                            <th>Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailTableBody">
-                    </tbody>
-                </table>
+                <div class="entries-header">
+                    <h3>Detaillierte Auflistung</h3>
+                    <div class="view-toggle">
+                        <button class="btn btn-small btn-secondary active" id="detailTableViewBtn" onclick="switchDetailView('table')">
+                            ≡ Tabelle
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="detailMonthViewBtn" onclick="switchDetailView('month')">
+                            📅 Monat
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="detailWeekViewBtn" onclick="switchDetailView('week')">
+                            📊 Woche
+                        </button>
+                    </div>
+                </div>
+                <div id="detailTableView">
+                    <table class="detail-table" id="detailTable">
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Benutzer</th>
+                                <th>Kunde</th>
+                                <th>Projekt</th>
+                                <th>Beschreibung</th>
+                                <th>Tags</th>
+                                <th>Dauer</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="detailMonthView" class="calendar-month-view" style="display: none;">
+                    <!-- Month calendar will be rendered here -->
+                </div>
+                <div id="detailWeekView" class="calendar-week-view" style="display: none;">
+                    <!-- Week timeline will be rendered here -->
+                </div>
             </div>
         </section>
 

@@ -1714,3 +1714,204 @@ a:hover {
     color: var(--primary-dark);
     margin-top: 4px;
 }
+
+/* === Month Calendar View === */
+.calendar-month-view {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.month-calendar {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.month-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+    text-transform: capitalize;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-weekday {
+    background: var(--primary-lighter);
+    padding: var(--spacing-sm);
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--primary-dark);
+    border-radius: var(--radius-sm);
+}
+
+.calendar-day {
+    background: var(--white);
+    border: 1px solid var(--gray-lighter);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    transition: all var(--transition-fast);
+}
+
+.calendar-day.empty {
+    background: var(--gray-lighter);
+    opacity: 0.3;
+}
+
+.calendar-day.has-entries {
+    background: var(--primary-lighter);
+    border-color: var(--primary);
+    cursor: pointer;
+}
+
+.calendar-day.has-entries:hover {
+    background: var(--primary-light);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+}
+
+.day-number {
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 4px;
+}
+
+.day-hours {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-top: auto;
+}
+
+.day-entries-count {
+    font-size: 0.7rem;
+    color: var(--gray);
+}
+
+/* === Week Timeline View === */
+.calendar-week-view {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.week-timeline-container {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--spacing-sm);
+    min-height: 600px;
+}
+
+.week-day-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.week-day-header {
+    background: var(--primary-lighter);
+    padding: var(--spacing-sm);
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--primary-dark);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.week-day-timeline {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 4px;
+    background: var(--gray-lighter);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+    position: relative;
+}
+
+.week-timeline-hours {
+    display: flex;
+    flex-direction: column;
+}
+
+.week-timeline-hour {
+    flex: 1;
+    font-size: 0.6rem;
+    color: var(--gray);
+    font-weight: 600;
+}
+
+.week-timeline-entries {
+    position: relative;
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--gray-light) 0px,
+        var(--gray-light) 1px,
+        transparent 1px,
+        transparent calc(100% / 17)
+    );
+}
+
+.week-timeline-entry {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--primary-lighter);
+    border-left: 2px solid var(--primary);
+    border-radius: var(--radius-sm);
+    padding: 2px 4px;
+    overflow: hidden;
+    font-size: 0.65rem;
+    cursor: pointer;
+}
+
+.week-timeline-entry:hover {
+    background: var(--primary-light);
+    z-index: 10;
+}
+
+.week-entry-time {
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.week-entry-project {
+    color: var(--dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 1200px) {
+    .week-timeline-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .week-timeline-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .calendar-grid {
+        gap: 2px;
+    }
+
+    .calendar-day {
+        min-height: 60px;
+        padding: 4px;
+    }
+}
