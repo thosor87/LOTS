@@ -69,6 +69,12 @@ let charts = {
     user: null
 };
 
+// Lexoffice API Configuration
+let lexofficeConfig = {
+    apiKey: null,
+    baseUrl: 'https://api.lexoffice.io/v1'
+};
+
 // ============================================
 // NOTIFICATION SYSTEM
 // ============================================
@@ -213,6 +219,9 @@ function showApp() {
     initializeApp();
     setupNavigation();
     setDefaultDates();
+
+    // Load Lexoffice configuration
+    loadLexofficeConfig();
 }
 
 function showOrgSetup() {
@@ -393,6 +402,13 @@ async function showOrgSettings() {
         const currentUserDoc = await db.collection('users').doc(currentFirebaseUser.uid).get();
         const userColor = currentUserDoc.data().color || '#9B59B6'; // Default purple
         document.getElementById('userColorSetting').value = userColor;
+
+        // Load Lexoffice status
+        const orgDoc = await db.collection('organizations').doc(currentOrganization.id).get();
+        const hasLexofficeKey = orgDoc.exists && orgDoc.data().lexofficeApiKey;
+        document.getElementById('lexofficeStatus').innerHTML = hasLexofficeKey
+            ? '<span class="status-badge status-active">Verbunden</span>'
+            : '<span class="status-badge status-paused">Nicht verbunden</span>';
 
         openModal('orgSettingsModal');
     } catch (error) {
@@ -811,6 +827,7 @@ function renderClients() {
         container.innerHTML = appData.clients.map(client => {
             const projectCount = appData.projects.filter(p => p.clientId === client.id).length;
             const totalHours = calculateClientHours(client.id);
+            const hasLexoffice = !!client.lexofficeContactId;
 
             return `
                 <div class="card">
@@ -819,6 +836,7 @@ function renderClients() {
                             <div class="card-title">${escapeHtml(client.name)}</div>
                             ${client.contact ? `<div class="card-subtitle">${escapeHtml(client.contact)}</div>` : ''}
                         </div>
+                        ${hasLexoffice ? '<span class="status-badge status-active">Lexoffice</span>' : ''}
                     </div>
                     <div class="card-content">
                         <div class="card-meta">
@@ -827,10 +845,13 @@ function renderClients() {
                             ${client.hourlyRate ? `<span>💰 ${client.hourlyRate}€/Std.</span>` : ''}
                             <span>📁 ${projectCount} Projekte</span>
                             <span>⏱️ ${formatHours(totalHours)} erfasst</span>
+                            ${hasLexoffice ? `<span class="lexoffice-link">🔗 ${escapeHtml(client.lexofficeContactName || 'Verknüpft')}</span>` : ''}
                         </div>
                     </div>
                     <div class="card-actions">
                         <button class="btn btn-small btn-secondary" onclick="editClient('${client.id}')">Bearbeiten</button>
+                        <button class="btn btn-small ${hasLexoffice ? 'btn-primary' : 'btn-secondary'}" onclick="openLexofficeLinkModal('${client.id}')">${hasLexoffice ? '🔗 Lexoffice' : '+ Lexoffice'}</button>
+                        ${hasLexoffice ? `<button class="btn btn-small btn-accent" onclick="openInvoiceModal('${client.id}')">📄 Rechnung</button>` : ''}
                         <button class="btn btn-small btn-danger" onclick="deleteClient('${client.id}')">Löschen</button>
                     </div>
                 </div>
@@ -1376,12 +1397,16 @@ function renderTodayEntries() {
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
         const userName = entry.userName || 'Unbekannt';
+        const isNonBillable = entry.nonBillable;
 
         return `
-            <div class="entry-card">
+            <div class="entry-card ${isNonBillable ? 'non-billable' : ''}">
                 <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
                 <div class="entry-details">
-                    <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
+                    <div class="entry-project">
+                        ${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}
+                        ${isNonBillable ? '<span class="tag tag-warning">Nicht fakturierbar</span>' : ''}
+                    </div>
                     <div class="entry-client">${client ? escapeHtml(client.name) : ''} • ${escapeHtml(userName)}</div>
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
                     ${normalizeTags(entry.tags).length > 0 ? `
@@ -1392,6 +1417,7 @@ function renderTodayEntries() {
                 </div>
                 <div class="entry-duration">${formatHours(entry.duration)}</div>
                 <div class="entry-actions">
+                    <button class="btn btn-small ${isNonBillable ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBillable('${entry.id}')" title="${isNonBillable ? 'Als fakturierbar markieren' : 'Als nicht-fakturierbar markieren'}">💰</button>
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
                     <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
                 </div>
@@ -1883,17 +1909,22 @@ function updateDetailTable(entries) {
         const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+        const isNonBillable = entry.nonBillable;
 
         return `
-            <tr>
+            <tr class="${isNonBillable ? 'non-billable-row' : ''}">
                 <td>${formatDate(entry.date)}</td>
                 <td>${escapeHtml(userName)}</td>
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
-                <td>${normalizeTags(entry.tags).map(t => `<span class="tag" onclick="filterByTag('${escapeHtml(t)}')" style="cursor: pointer;">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>
+                    ${isNonBillable ? '<span class="tag tag-warning">Nicht-fakt.</span> ' : ''}
+                    ${normalizeTags(entry.tags).map(t => `<span class="tag" onclick="filterByTag('${escapeHtml(t)}')" style="cursor: pointer;">${escapeHtml(t)}</span>`).join(' ')}
+                </td>
                 <td>${formatHours(entry.duration)}</td>
                 <td class="actions">
+                    <button class="btn btn-small ${isNonBillable ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBillable('${entry.id}')" title="${isNonBillable ? 'Als fakturierbar markieren' : 'Als nicht-fakturierbar markieren'}">💰</button>
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
                     <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
                 </td>
@@ -2281,4 +2312,600 @@ function generateColors(count) {
         colors.push(baseColors[i % baseColors.length]);
     }
     return colors;
+}
+
+// ============================================
+// LEXOFFICE API INTEGRATION
+// ============================================
+
+// Load Lexoffice API Key from organization settings
+async function loadLexofficeConfig() {
+    if (!currentOrganization) return;
+
+    try {
+        const orgDoc = await db.collection('organizations').doc(currentOrganization.id).get();
+        if (orgDoc.exists && orgDoc.data().lexofficeApiKey) {
+            lexofficeConfig.apiKey = orgDoc.data().lexofficeApiKey;
+        }
+    } catch (error) {
+        console.error('Error loading Lexoffice config:', error);
+    }
+}
+
+// Save Lexoffice API Key
+async function saveLexofficeApiKey() {
+    const apiKey = document.getElementById('lexofficeApiKey').value.trim();
+
+    if (!apiKey) {
+        showNotification('Bitte gib einen API-Key ein!', 'warning');
+        return;
+    }
+
+    try {
+        // Test the API key first
+        const testResult = await testLexofficeConnection(apiKey);
+        if (!testResult.success) {
+            showNotification('API-Key ungültig: ' + testResult.error, 'error');
+            return;
+        }
+
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id).update({
+            lexofficeApiKey: apiKey
+        });
+
+        lexofficeConfig.apiKey = apiKey;
+        showNotification('Lexoffice API-Key erfolgreich gespeichert!', 'success');
+
+        // Update UI
+        document.getElementById('lexofficeStatus').innerHTML = '<span class="status-badge status-active">Verbunden</span>';
+    } catch (error) {
+        console.error('Save Lexoffice API Key error:', error);
+        showNotification('Fehler beim Speichern: ' + error.message, 'error');
+    }
+}
+
+// Test Lexoffice connection
+async function testLexofficeConnection(apiKey) {
+    try {
+        const response = await fetch('https://api.lexoffice.io/v1/profile', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            return { success: true };
+        } else {
+            const error = await response.json();
+            return { success: false, error: error.message || 'Unbekannter Fehler' };
+        }
+    } catch (error) {
+        return { success: false, error: 'Verbindung fehlgeschlagen' };
+    }
+}
+
+// Fetch Lexoffice contacts
+async function fetchLexofficeContacts(searchTerm = '') {
+    if (!lexofficeConfig.apiKey) {
+        showNotification('Bitte zuerst Lexoffice API-Key einrichten!', 'warning');
+        return [];
+    }
+
+    try {
+        let url = 'https://api.lexoffice.io/v1/contacts?customer=true&page=0&size=100';
+        if (searchTerm) {
+            url += `&name=${encodeURIComponent(searchTerm)}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${lexofficeConfig.apiKey}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Fehler beim Abrufen der Kontakte');
+        }
+
+        const data = await response.json();
+        return data.content || [];
+    } catch (error) {
+        console.error('Fetch Lexoffice contacts error:', error);
+        showNotification('Fehler beim Laden der Lexoffice-Kontakte: ' + error.message, 'error');
+        return [];
+    }
+}
+
+// Get single Lexoffice contact
+async function getLexofficeContact(contactId) {
+    if (!lexofficeConfig.apiKey) return null;
+
+    try {
+        const response = await fetch(`https://api.lexoffice.io/v1/contacts/${contactId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${lexofficeConfig.apiKey}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.error('Get Lexoffice contact error:', error);
+        return null;
+    }
+}
+
+// Create invoice in Lexoffice
+async function createLexofficeInvoice(invoiceData) {
+    if (!lexofficeConfig.apiKey) {
+        showNotification('Bitte zuerst Lexoffice API-Key einrichten!', 'warning');
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://api.lexoffice.io/v1/invoices?finalize=true', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${lexofficeConfig.apiKey}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(invoiceData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Rechnung konnte nicht erstellt werden');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Create Lexoffice invoice error:', error);
+        showNotification('Fehler beim Erstellen der Rechnung: ' + error.message, 'error');
+        return null;
+    }
+}
+
+// Link LOTS client with Lexoffice contact
+async function linkLexofficeContact(clientId, lexofficeContactId, lexofficeContactName) {
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        await orgRef.collection('clients').doc(clientId).update({
+            lexofficeContactId: lexofficeContactId,
+            lexofficeContactName: lexofficeContactName
+        });
+
+        // Update local state
+        const clientIndex = appData.clients.findIndex(c => c.id === clientId);
+        if (clientIndex !== -1) {
+            appData.clients[clientIndex].lexofficeContactId = lexofficeContactId;
+            appData.clients[clientIndex].lexofficeContactName = lexofficeContactName;
+        }
+
+        showNotification('Lexoffice-Kontakt erfolgreich verknüpft!', 'success');
+        renderClients();
+    } catch (error) {
+        console.error('Link Lexoffice contact error:', error);
+        showNotification('Fehler beim Verknüpfen: ' + error.message, 'error');
+    }
+}
+
+// Unlink Lexoffice contact
+async function unlinkLexofficeContact(clientId) {
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        await orgRef.collection('clients').doc(clientId).update({
+            lexofficeContactId: firebase.firestore.FieldValue.delete(),
+            lexofficeContactName: firebase.firestore.FieldValue.delete()
+        });
+
+        // Update local state
+        const clientIndex = appData.clients.findIndex(c => c.id === clientId);
+        if (clientIndex !== -1) {
+            delete appData.clients[clientIndex].lexofficeContactId;
+            delete appData.clients[clientIndex].lexofficeContactName;
+        }
+
+        showNotification('Lexoffice-Verknüpfung aufgehoben!', 'success');
+        renderClients();
+    } catch (error) {
+        console.error('Unlink Lexoffice contact error:', error);
+        showNotification('Fehler beim Aufheben der Verknüpfung: ' + error.message, 'error');
+    }
+}
+
+// Open Lexoffice link modal
+async function openLexofficeLinkModal(clientId) {
+    const client = appData.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    document.getElementById('linkClientId').value = clientId;
+    document.getElementById('linkClientName').textContent = client.name;
+
+    // Load Lexoffice contacts
+    const contactsContainer = document.getElementById('lexofficeContactsList');
+    contactsContainer.innerHTML = '<p class="text-muted">Lade Kontakte...</p>';
+
+    openModal('lexofficeLinkModal');
+
+    const contacts = await fetchLexofficeContacts();
+
+    if (contacts.length === 0) {
+        contactsContainer.innerHTML = '<p class="text-muted">Keine Kontakte gefunden. Erstelle zuerst Kontakte in Lexoffice.</p>';
+        return;
+    }
+
+    contactsContainer.innerHTML = contacts.map(contact => {
+        const name = contact.company?.name || `${contact.person?.firstName || ''} ${contact.person?.lastName || ''}`.trim();
+        const isLinked = client.lexofficeContactId === contact.id;
+
+        return `
+            <div class="lexoffice-contact-item ${isLinked ? 'linked' : ''}">
+                <div class="contact-info">
+                    <div class="contact-name">${escapeHtml(name)}</div>
+                    <div class="contact-details">${contact.addresses?.billing?.[0]?.city || ''}</div>
+                </div>
+                <button class="btn btn-small ${isLinked ? 'btn-secondary' : 'btn-primary'}"
+                        onclick="${isLinked ? `unlinkLexofficeContact('${clientId}')` : `linkLexofficeContact('${clientId}', '${contact.id}', '${escapeHtml(name)}')`}; closeModal('lexofficeLinkModal')">
+                    ${isLinked ? 'Verknüpfung lösen' : 'Verknüpfen'}
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+// Search Lexoffice contacts
+async function searchLexofficeContacts() {
+    const searchTerm = document.getElementById('lexofficeContactSearch').value;
+    const clientId = document.getElementById('linkClientId').value;
+    const client = appData.clients.find(c => c.id === clientId);
+
+    const contactsContainer = document.getElementById('lexofficeContactsList');
+    contactsContainer.innerHTML = '<p class="text-muted">Suche...</p>';
+
+    const contacts = await fetchLexofficeContacts(searchTerm);
+
+    if (contacts.length === 0) {
+        contactsContainer.innerHTML = '<p class="text-muted">Keine Kontakte gefunden.</p>';
+        return;
+    }
+
+    contactsContainer.innerHTML = contacts.map(contact => {
+        const name = contact.company?.name || `${contact.person?.firstName || ''} ${contact.person?.lastName || ''}`.trim();
+        const isLinked = client.lexofficeContactId === contact.id;
+
+        return `
+            <div class="lexoffice-contact-item ${isLinked ? 'linked' : ''}">
+                <div class="contact-info">
+                    <div class="contact-name">${escapeHtml(name)}</div>
+                    <div class="contact-details">${contact.addresses?.billing?.[0]?.city || ''}</div>
+                </div>
+                <button class="btn btn-small ${isLinked ? 'btn-secondary' : 'btn-primary'}"
+                        onclick="${isLinked ? `unlinkLexofficeContact('${clientId}')` : `linkLexofficeContact('${clientId}', '${contact.id}', '${escapeHtml(name)}')`}; closeModal('lexofficeLinkModal')">
+                    ${isLinked ? 'Verknüpfung lösen' : 'Verknüpfen'}
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================
+// LEXOFFICE INVOICE CREATION
+// ============================================
+
+// Open invoice creation modal
+function openInvoiceModal(clientId) {
+    const client = appData.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    if (!client.lexofficeContactId) {
+        showNotification('Bitte zuerst einen Lexoffice-Kontakt verknüpfen!', 'warning');
+        return;
+    }
+
+    document.getElementById('invoiceClientId').value = clientId;
+    document.getElementById('invoiceClientName').textContent = client.name;
+
+    // Set default date range to current month
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    document.getElementById('invoicePeriodType').value = 'month';
+    document.getElementById('invoiceMonth').value = today.toISOString().substring(0, 7);
+    document.getElementById('invoiceDateRange').style.display = 'none';
+
+    // Load projects for this client
+    const projects = appData.projects.filter(p => p.clientId === clientId);
+    const projectSelect = document.getElementById('invoiceProject');
+    projectSelect.innerHTML = '<option value="">Alle Projekte</option>' +
+        projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+
+    // Preview entries
+    previewInvoiceEntries();
+
+    openModal('invoiceModal');
+}
+
+// Handle period type change
+function handleInvoicePeriodChange() {
+    const periodType = document.getElementById('invoicePeriodType').value;
+    const monthInput = document.getElementById('invoiceMonth');
+    const dateRange = document.getElementById('invoiceDateRange');
+
+    if (periodType === 'month') {
+        monthInput.style.display = 'block';
+        dateRange.style.display = 'none';
+    } else {
+        monthInput.style.display = 'none';
+        dateRange.style.display = 'flex';
+    }
+
+    previewInvoiceEntries();
+}
+
+// Preview invoice entries
+function previewInvoiceEntries() {
+    const clientId = document.getElementById('invoiceClientId').value;
+    const projectId = document.getElementById('invoiceProject').value;
+    const periodType = document.getElementById('invoicePeriodType').value;
+
+    let startDate, endDate;
+
+    if (periodType === 'month') {
+        const month = document.getElementById('invoiceMonth').value;
+        if (!month) return;
+        startDate = month + '-01';
+        const [year, m] = month.split('-');
+        endDate = new Date(parseInt(year), parseInt(m), 0).toISOString().split('T')[0];
+    } else {
+        startDate = document.getElementById('invoiceStartDate').value;
+        endDate = document.getElementById('invoiceEndDate').value;
+    }
+
+    if (!startDate || !endDate) return;
+
+    // Get client's projects
+    const clientProjects = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
+
+    // Filter entries
+    let entries = appData.entries.filter(e => {
+        if (!clientProjects.includes(e.projectId)) return false;
+        if (projectId && e.projectId !== projectId) return false;
+        if (e.date < startDate || e.date > endDate) return false;
+        if (e.nonBillable) return false; // Exclude non-billable entries
+        return true;
+    });
+
+    // Sort by date
+    entries.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+
+    const container = document.getElementById('invoiceEntriesPreview');
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Keine fakturierbaren Einträge im gewählten Zeitraum.</p>';
+        document.getElementById('invoiceTotalHours').textContent = '0h';
+        document.getElementById('invoiceTotalAmount').textContent = '0,00 €';
+        return;
+    }
+
+    // Calculate totals
+    let totalHours = 0;
+    let totalAmount = 0;
+
+    container.innerHTML = entries.map(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = appData.clients.find(c => c.id === clientId);
+        const hourlyRate = project?.hourlyRate ?? client?.hourlyRate ?? 0;
+        const amount = entry.duration * hourlyRate;
+
+        totalHours += entry.duration;
+        totalAmount += amount;
+
+        return `
+            <div class="invoice-entry-item" data-entry-id="${entry.id}">
+                <label class="checkbox-label">
+                    <input type="checkbox" checked onchange="updateInvoiceTotals()">
+                    <div class="entry-info">
+                        <span class="entry-date">${formatDate(entry.date)}</span>
+                        <span class="entry-project">${project ? escapeHtml(project.name) : ''}</span>
+                        <span class="entry-desc">${escapeHtml(entry.description || '-')}</span>
+                    </div>
+                    <span class="entry-hours">${formatHours(entry.duration)}</span>
+                    <span class="entry-amount">${amount.toFixed(2)} €</span>
+                </label>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('invoiceTotalHours').textContent = formatHours(totalHours);
+    document.getElementById('invoiceTotalAmount').textContent = totalAmount.toFixed(2) + ' €';
+}
+
+// Update invoice totals when entries are toggled
+function updateInvoiceTotals() {
+    const clientId = document.getElementById('invoiceClientId').value;
+    const items = document.querySelectorAll('.invoice-entry-item');
+
+    let totalHours = 0;
+    let totalAmount = 0;
+
+    items.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox.checked) {
+            const entryId = item.dataset.entryId;
+            const entry = appData.entries.find(e => e.id === entryId);
+            if (entry) {
+                const project = appData.projects.find(p => p.id === entry.projectId);
+                const client = appData.clients.find(c => c.id === clientId);
+                const hourlyRate = project?.hourlyRate ?? client?.hourlyRate ?? 0;
+
+                totalHours += entry.duration;
+                totalAmount += entry.duration * hourlyRate;
+            }
+        }
+    });
+
+    document.getElementById('invoiceTotalHours').textContent = formatHours(totalHours);
+    document.getElementById('invoiceTotalAmount').textContent = totalAmount.toFixed(2) + ' €';
+}
+
+// Create and send invoice to Lexoffice
+async function createInvoice() {
+    const clientId = document.getElementById('invoiceClientId').value;
+    const client = appData.clients.find(c => c.id === clientId);
+
+    if (!client || !client.lexofficeContactId) {
+        showNotification('Kein Lexoffice-Kontakt verknüpft!', 'error');
+        return;
+    }
+
+    // Get selected entries
+    const items = document.querySelectorAll('.invoice-entry-item');
+    const selectedEntries = [];
+
+    items.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox.checked) {
+            const entryId = item.dataset.entryId;
+            const entry = appData.entries.find(e => e.id === entryId);
+            if (entry) {
+                selectedEntries.push(entry);
+            }
+        }
+    });
+
+    if (selectedEntries.length === 0) {
+        showNotification('Bitte wähle mindestens einen Eintrag aus!', 'warning');
+        return;
+    }
+
+    // Group entries by project for line items
+    const projectGroups = {};
+    selectedEntries.forEach(entry => {
+        if (!projectGroups[entry.projectId]) {
+            projectGroups[entry.projectId] = {
+                entries: [],
+                totalHours: 0
+            };
+        }
+        projectGroups[entry.projectId].entries.push(entry);
+        projectGroups[entry.projectId].totalHours += entry.duration;
+    });
+
+    // Build line items
+    const lineItems = [];
+    for (const [projectId, group] of Object.entries(projectGroups)) {
+        const project = appData.projects.find(p => p.id === projectId);
+        const hourlyRate = project?.hourlyRate ?? client.hourlyRate ?? 0;
+
+        // Create description with all entries
+        const descriptions = group.entries.map(e => {
+            return `${formatDate(e.date)}: ${e.description || 'Arbeitszeit'} (${formatHours(e.duration)})`;
+        });
+
+        lineItems.push({
+            type: 'custom',
+            name: project ? project.name : 'Dienstleistung',
+            description: descriptions.join('\n'),
+            quantity: group.totalHours,
+            unitName: 'Stunde(n)',
+            unitPrice: {
+                currency: 'EUR',
+                netAmount: hourlyRate,
+                taxRatePercentage: 19
+            }
+        });
+    }
+
+    // Build invoice data
+    const invoiceData = {
+        voucherDate: new Date().toISOString().split('T')[0],
+        address: {
+            contactId: client.lexofficeContactId
+        },
+        lineItems: lineItems,
+        totalPrice: {
+            currency: 'EUR'
+        },
+        taxConditions: {
+            taxType: 'net'
+        },
+        shippingConditions: {
+            shippingType: 'service',
+            shippingDate: new Date().toISOString().split('T')[0]
+        }
+    };
+
+    // Create invoice in Lexoffice
+    const result = await createLexofficeInvoice(invoiceData);
+
+    if (result) {
+        showNotification('Rechnung erfolgreich in Lexoffice erstellt!', 'success');
+
+        // Mark entries as invoiced (optional)
+        for (const entry of selectedEntries) {
+            try {
+                await db.collection('organizations').doc(currentOrganization.id)
+                    .collection('timeEntries').doc(entry.id).update({
+                        invoiced: true,
+                        invoicedAt: new Date().toISOString(),
+                        lexofficeInvoiceId: result.id
+                    });
+
+                // Update local state
+                const entryIndex = appData.entries.findIndex(e => e.id === entry.id);
+                if (entryIndex !== -1) {
+                    appData.entries[entryIndex].invoiced = true;
+                    appData.entries[entryIndex].invoicedAt = new Date().toISOString();
+                    appData.entries[entryIndex].lexofficeInvoiceId = result.id;
+                }
+            } catch (error) {
+                console.error('Error marking entry as invoiced:', error);
+            }
+        }
+
+        closeModal('invoiceModal');
+    }
+}
+
+// ============================================
+// NON-BILLABLE ENTRIES
+// ============================================
+
+// Toggle billable status for an entry
+async function toggleBillable(entryId) {
+    const entry = appData.entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    const newStatus = !entry.nonBillable;
+
+    try {
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).update({
+                nonBillable: newStatus
+            });
+
+        // Update local state
+        entry.nonBillable = newStatus;
+
+        showNotification(
+            newStatus ? 'Eintrag als nicht-fakturierbar markiert' : 'Eintrag als fakturierbar markiert',
+            'success'
+        );
+
+        renderTodayEntries();
+        updateCharts();
+    } catch (error) {
+        console.error('Toggle billable error:', error);
+        showNotification('Fehler beim Aktualisieren: ' + error.message, 'error');
+    }
 }

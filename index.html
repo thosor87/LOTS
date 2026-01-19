@@ -578,10 +578,111 @@
                         </div>
                         <button class="btn btn-primary btn-small" onclick="saveUserColor()">Farbe speichern</button>
                     </div>
+
+                    <h4>Lexoffice Integration</h4>
+                    <div class="lexoffice-settings">
+                        <p class="form-note">Verbinde LOTS mit Lexoffice, um Rechnungen direkt zu erstellen.</p>
+                        <div class="lexoffice-status-row">
+                            <span>Status:</span>
+                            <span id="lexofficeStatus"><span class="status-badge status-paused">Nicht verbunden</span></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="lexofficeApiKey">API-Key</label>
+                            <input type="password" id="lexofficeApiKey" placeholder="Dein Lexoffice API-Key">
+                            <small>Erstelle den Key unter Lexoffice > Einstellungen > Public API</small>
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="saveLexofficeApiKey()">API-Key speichern</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('orgSettingsModal')">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lexoffice Link Modal -->
+    <div class="modal" id="lexofficeLinkModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Lexoffice-Kontakt verknüpfen</h3>
+                <button class="modal-close" onclick="closeModal('lexofficeLinkModal')">×</button>
+            </div>
+            <input type="hidden" id="linkClientId">
+            <div class="modal-body">
+                <p>Verknüpfe <strong id="linkClientName"></strong> mit einem Lexoffice-Kontakt:</p>
+
+                <div class="search-bar">
+                    <input type="text" id="lexofficeContactSearch" placeholder="Kontakt suchen...">
+                    <button class="btn btn-secondary" onclick="searchLexofficeContacts()">Suchen</button>
+                </div>
+
+                <div id="lexofficeContactsList" class="lexoffice-contacts-list">
+                    <p class="text-muted">Lade Kontakte...</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('lexofficeLinkModal')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div class="modal" id="invoiceModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Rechnung erstellen</h3>
+                <button class="modal-close" onclick="closeModal('invoiceModal')">×</button>
+            </div>
+            <input type="hidden" id="invoiceClientId">
+            <div class="modal-body">
+                <p>Rechnung für <strong id="invoiceClientName"></strong></p>
+
+                <div class="invoice-filters">
+                    <div class="form-group">
+                        <label>Zeitraum</label>
+                        <select id="invoicePeriodType" onchange="handleInvoicePeriodChange()">
+                            <option value="month">Ganzer Monat</option>
+                            <option value="days">Einzelne Tage</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="month" id="invoiceMonth" onchange="previewInvoiceEntries()">
+                        <div id="invoiceDateRange" class="date-range" style="display: none;">
+                            <input type="date" id="invoiceStartDate" onchange="previewInvoiceEntries()">
+                            <span>bis</span>
+                            <input type="date" id="invoiceEndDate" onchange="previewInvoiceEntries()">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Projekt</label>
+                        <select id="invoiceProject" onchange="previewInvoiceEntries()">
+                            <option value="">Alle Projekte</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4>Zeiteinträge</h4>
+                <p class="form-note">Deaktiviere Einträge, die nicht in die Rechnung aufgenommen werden sollen.</p>
+
+                <div id="invoiceEntriesPreview" class="invoice-entries-preview">
+                    <p class="empty-state">Keine Einträge gefunden.</p>
+                </div>
+
+                <div class="invoice-summary">
+                    <div class="summary-row">
+                        <span>Gesamt Stunden:</span>
+                        <strong id="invoiceTotalHours">0h</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Gesamt Betrag:</span>
+                        <strong id="invoiceTotalAmount">0,00 €</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('invoiceModal')">Abbrechen</button>
+                <button class="btn btn-accent" onclick="createInvoice()">Rechnung in Lexoffice erstellen</button>
             </div>
         </div>
     </div>

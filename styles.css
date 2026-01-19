@@ -1540,3 +1540,238 @@ a:hover {
         flex-direction: column;
     }
 }
+
+/* === Lexoffice Integration Styles === */
+.lexoffice-settings {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--gray-lighter);
+}
+
+.lexoffice-status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.lexoffice-link {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+/* Lexoffice Contacts List */
+.lexoffice-contacts-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: var(--spacing-md);
+}
+
+.lexoffice-contact-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-lighter);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    transition: all var(--transition-fast);
+}
+
+.lexoffice-contact-item:hover {
+    background: var(--primary-lighter);
+    border-color: var(--primary-light);
+}
+
+.lexoffice-contact-item.linked {
+    background: var(--primary-lighter);
+    border-color: var(--primary);
+}
+
+.contact-info {
+    flex: 1;
+}
+
+.contact-name {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.contact-details {
+    font-size: 0.85rem;
+    color: var(--gray);
+}
+
+/* Search Bar */
+.search-bar {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.search-bar input {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--gray-light);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-lighter);
+}
+
+/* Invoice Modal Styles */
+.invoice-filters {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--gray-lighter);
+    border-radius: var(--radius-md);
+}
+
+.invoice-filters .form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.date-range input {
+    flex: 1;
+}
+
+.invoice-entries-preview {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--gray-lighter);
+    border-radius: var(--radius-md);
+}
+
+.invoice-entry-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--gray-lighter);
+}
+
+.invoice-entry-item:last-child {
+    border-bottom: none;
+}
+
+.invoice-entry-item:hover {
+    background: var(--primary-lighter);
+}
+
+.invoice-entry-item .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin: 0;
+    cursor: pointer;
+}
+
+.invoice-entry-item .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+.invoice-entry-item .entry-info {
+    flex: 1;
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.invoice-entry-item .entry-date {
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.invoice-entry-item .entry-project {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.invoice-entry-item .entry-desc {
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+.invoice-entry-item .entry-hours {
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+}
+
+.invoice-entry-item .entry-amount {
+    font-weight: 600;
+    color: var(--primary);
+    min-width: 80px;
+    text-align: right;
+}
+
+.invoice-summary {
+    background: var(--primary-lighter);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.summary-row:last-child {
+    margin-bottom: 0;
+}
+
+.summary-row strong {
+    font-size: 1.2rem;
+    color: var(--primary-dark);
+}
+
+/* Large Modal */
+.modal-content.modal-large {
+    max-width: 700px;
+}
+
+/* Non-billable Entry Styles */
+.entry-card.non-billable {
+    opacity: 0.7;
+    background: var(--gray-lighter);
+}
+
+.entry-card.non-billable:hover {
+    background: var(--gray-light);
+}
+
+.non-billable-row {
+    opacity: 0.7;
+    background: var(--gray-lighter);
+}
+
+.tag-warning {
+    background: var(--warning);
+    color: var(--white);
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: var(--white);
+}
+
+.btn-warning:hover {
+    background: #D68910;
+}
