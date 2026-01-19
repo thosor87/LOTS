@@ -2446,10 +2446,22 @@ function exportPDF(type) {
                 ? project.hourlyRate
                 : (projectClient ? projectClient.hourlyRate || 0 : 0);
 
+            // Determine unique users for this project
+            const uniqueUsers = [...new Set(projectEntries.map(e => e.userId))];
+            const isMultiUser = uniqueUsers.length > 1;
+
             // Project header row
+            let projectHeaderContent = project ? project.name : 'Unbekanntes Projekt';
+
+            // If customer PDF and single user, add user name to project header
+            if (type === 'customer' && !isMultiUser && projectEntries.length > 0) {
+                const userName = projectEntries[0].userName || 'Unbekannt';
+                projectHeaderContent += ` (${userName})`;
+            }
+
             tableData.push([{
-                content: project ? project.name : 'Unbekanntes Projekt',
-                colSpan: type === 'customer' ? 5 : 6,
+                content: projectHeaderContent,
+                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 6),
                 styles: { fillColor: [236, 218, 239], fontStyle: 'bold', textColor: [44, 62, 80] }
             }]);
 
@@ -2459,13 +2471,26 @@ function exportPDF(type) {
                 const cost = entry.duration * hourlyRate;
 
                 if (type === 'customer') {
-                    tableData.push([
-                        formatDate(entry.date),
-                        entry.description || '-',
-                        formatHours(entry.duration),
-                        hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
-                        cost > 0 ? cost.toFixed(2) + ' €' : '-'
-                    ]);
+                    // If multiple users, add user name column
+                    if (isMultiUser) {
+                        tableData.push([
+                            formatDate(entry.date),
+                            userName,
+                            entry.description || '-',
+                            formatHours(entry.duration),
+                            hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                            cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                        ]);
+                    } else {
+                        // Single user: no user column needed (name is in project header)
+                        tableData.push([
+                            formatDate(entry.date),
+                            entry.description || '-',
+                            formatHours(entry.duration),
+                            hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                            cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                        ]);
+                    }
                 } else {
                     tableData.push([
                         formatDate(entry.date),
@@ -2483,13 +2508,25 @@ function exportPDF(type) {
             const projectCost = projectTotal * hourlyRate;
             tableData.push([{
                 content: 'Zwischensumme: ' + formatHours(projectTotal) + (projectCost > 0 ? ' = ' + projectCost.toFixed(2) + ' €' : ''),
-                colSpan: type === 'customer' ? 5 : 6,
+                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 6),
                 styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'right' }
             }]);
         });
 
+        // Determine if ANY project has multiple users (for customer PDF headers)
+        let hasAnyMultiUser = false;
+        if (type === 'customer') {
+            Object.keys(projectGroups).forEach(projectId => {
+                const projectEntries = projectGroups[projectId];
+                const uniqueUsers = [...new Set(projectEntries.map(e => e.userId))];
+                if (uniqueUsers.length > 1) {
+                    hasAnyMultiUser = true;
+                }
+            });
+        }
+
         const headers = type === 'customer'
-            ? ['Datum', 'Beschreibung', 'Dauer', '€/Std.', 'Summe']
+            ? (hasAnyMultiUser ? ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'] : ['Datum', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'])
             : ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'];
 
         doc.autoTable({
@@ -2504,20 +2541,29 @@ function exportPDF(type) {
             styles: {
                 fontSize: 9
             },
-            columnStyles: type === 'customer' ? {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 'auto' },
-                2: { cellWidth: 20, halign: 'right' },
-                3: { cellWidth: 20, halign: 'right' },
-                4: { cellWidth: 25, halign: 'right' }
-            } : {
-                0: { cellWidth: 22 },
-                1: { cellWidth: 25 },
-                2: { cellWidth: 'auto' },
-                3: { cellWidth: 18, halign: 'right' },
-                4: { cellWidth: 20, halign: 'right' },
-                5: { cellWidth: 25, halign: 'right' }
-            }
+            columnStyles: type === 'customer'
+                ? (hasAnyMultiUser ? {
+                    0: { cellWidth: 22 },
+                    1: { cellWidth: 25 },
+                    2: { cellWidth: 'auto' },
+                    3: { cellWidth: 18, halign: 'right' },
+                    4: { cellWidth: 20, halign: 'right' },
+                    5: { cellWidth: 25, halign: 'right' }
+                } : {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 20, halign: 'right' },
+                    3: { cellWidth: 20, halign: 'right' },
+                    4: { cellWidth: 25, halign: 'right' }
+                })
+                : {
+                    0: { cellWidth: 22 },
+                    1: { cellWidth: 25 },
+                    2: { cellWidth: 'auto' },
+                    3: { cellWidth: 18, halign: 'right' },
+                    4: { cellWidth: 20, halign: 'right' },
+                    5: { cellWidth: 25, halign: 'right' }
+                }
         });
     }
 
