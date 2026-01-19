@@ -1817,6 +1817,14 @@ function updateDashboardStats() {
 // ============================================
 
 function initCharts() {
+    // Destroy existing charts if they exist
+    if (charts.client) charts.client.destroy();
+    if (charts.project) charts.project.destroy();
+    if (charts.daily) charts.daily.destroy();
+    if (charts.monthly) charts.monthly.destroy();
+    if (charts.tag) charts.tag.destroy();
+    if (charts.user) charts.user.destroy();
+
     const chartConfig = {
         responsive: true,
         maintainAspectRatio: true,

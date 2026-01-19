@@ -157,9 +157,24 @@ service cloud.firestore {
       allow create: if request.auth != null &&
                        isWhitelisted() &&
                        request.auth.uid in request.resource.data.members;
-      allow read, update: if request.auth != null &&
-                             request.auth.uid in resource.data.members &&
-                             isWhitelisted();
+      allow read: if request.auth != null &&
+                     request.auth.uid in resource.data.members &&
+                     isWhitelisted();
+      allow update: if request.auth != null &&
+                       isWhitelisted() &&
+                       (
+                         // Existing member can update
+                         request.auth.uid in resource.data.members ||
+                         // New member can add themselves (for joining via invite code)
+                         (
+                           request.auth.uid in request.resource.data.members &&
+                           !(request.auth.uid in resource.data.members) &&
+                           // Ensure only adding themselves, not removing other members
+                           resource.data.members.hasAll(
+                             request.resource.data.members.removeAll([request.auth.uid])
+                           )
+                         )
+                       );
 
       // Sub-collections
       match /{collection}/{doc} {
