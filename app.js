@@ -326,6 +326,10 @@ function renderProjects() {
             const budgetPercent = project.budgetHours ? Math.min(100, (totalHours / project.budgetHours) * 100) : 0;
             const budgetClass = budgetPercent > 90 ? 'danger' : budgetPercent > 75 ? 'warning' : '';
 
+            const effectiveRate = project.hourlyRate !== null && project.hourlyRate !== undefined
+                ? project.hourlyRate
+                : (client ? client.hourlyRate : 0);
+
             return `
                 <div class="card">
                     <div class="card-header">
@@ -339,6 +343,7 @@ function renderProjects() {
                         ${project.description ? `<p style="margin-bottom: var(--spacing-md);">${escapeHtml(project.description)}</p>` : ''}
                         <div class="card-meta">
                             <span>⏱️ ${formatHours(totalHours)} erfasst${project.budgetHours ? ` / ${formatHours(project.budgetHours)} Budget` : ''}</span>
+                            ${effectiveRate > 0 ? `<span>💰 ${effectiveRate.toFixed(2)}€/Std.${project.hourlyRate !== null && project.hourlyRate !== undefined ? ' (Projekt)' : ''}</span>` : ''}
                             ${project.deadline ? `<span>📅 Deadline: ${formatDate(project.deadline)}</span>` : ''}
                         </div>
                         ${project.budgetHours ? `
@@ -367,12 +372,14 @@ function renderProjects() {
 function saveProject(event) {
     event.preventDefault();
 
+    const hourlyRateValue = document.getElementById('projectHourlyRate').value;
     const project = {
         id: generateId(),
         clientId: document.getElementById('projectClient').value,
         name: document.getElementById('projectName').value.trim(),
         description: document.getElementById('projectDescription').value.trim(),
         budgetHours: parseFloat(document.getElementById('projectBudgetHours').value) || 0,
+        hourlyRate: hourlyRateValue ? parseFloat(hourlyRateValue) : null,
         deadline: document.getElementById('projectDeadline').value,
         status: document.getElementById('projectStatus').value,
         createdAt: new Date().toISOString()
@@ -1182,7 +1189,19 @@ function exportPDF(type) {
     // Summary
     const totalHours = entries.reduce((sum, e) => sum + e.duration, 0);
     const client = clientId ? appData.clients.find(c => c.id === clientId) : null;
-    const totalCost = client && client.hourlyRate ? totalHours * client.hourlyRate : 0;
+
+    // Calculate total cost considering project-specific hourly rates
+    const totalCost = entries.reduce((sum, entry) => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const entryClient = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        // Use project hourly rate if available, otherwise use client hourly rate
+        const hourlyRate = (project && project.hourlyRate !== null && project.hourlyRate !== undefined)
+            ? project.hourlyRate
+            : (entryClient ? entryClient.hourlyRate || 0 : 0);
+
+        return sum + (entry.duration * hourlyRate);
+    }, 0);
 
     doc.setFontSize(12);
     doc.setTextColor(44, 62, 80);
