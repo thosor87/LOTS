@@ -70,6 +70,58 @@ let charts = {
 };
 
 // ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+function showNotification(message, type = 'info', title = null) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+
+    const titles = {
+        success: title || 'Erfolg',
+        error: title || 'Fehler',
+        warning: title || 'Warnung',
+        info: title || 'Info'
+    };
+
+    notification.innerHTML = `
+        <div class="notification-icon">${icons[type]}</div>
+        <div class="notification-content">
+            <div class="notification-title">${titles[type]}</div>
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close" onclick="closeNotification(this)">×</button>
+    `;
+
+    container.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            closeNotification(notification.querySelector('.notification-close'));
+        }
+    }, 5000);
+}
+
+function closeNotification(button) {
+    const notification = button.closest('.notification');
+    notification.classList.add('removing');
+    setTimeout(() => {
+        notification.remove();
+    }, 300);
+}
+
+// ============================================
 // AUTHENTICATION FUNCTIONS
 // ============================================
 
@@ -143,7 +195,7 @@ async function signInWithGoogle() {
         await auth.signInWithPopup(provider);
     } catch (error) {
         console.error('Google sign in error:', error);
-        alert('Fehler beim Google Login: ' + error.message);
+        showNotification('Fehler beim Google Login: ' + error.message);
     }
 }
 
@@ -157,7 +209,7 @@ async function signOut() {
         await auth.signOut();
     } catch (error) {
         console.error('Sign out error:', error);
-        alert('Fehler beim Abmelden: ' + error.message);
+        showNotification('beim Abmelden: ' + error.message, 'error');
     }
 }
 
@@ -202,7 +254,7 @@ async function createOrganization() {
 
     } catch (error) {
         console.error('Create organization error:', error);
-        alert('Fehler beim Erstellen der Organisation: ' + error.message);
+        showNotification('beim Erstellen der Organisation: ' + error.message, 'error');
     }
 }
 
@@ -214,7 +266,7 @@ async function joinOrganization(event) {
         const codeDoc = await db.collection('inviteCodes').doc(code).get();
 
         if (!codeDoc.exists) {
-            alert('Ungültiger Einladungscode!');
+            showNotification('Ungültiger Einladungscode!', 'error');
             return;
         }
 
@@ -239,7 +291,7 @@ async function joinOrganization(event) {
 
     } catch (error) {
         console.error('Join organization error:', error);
-        alert('Fehler beim Beitreten: ' + error.message);
+        showNotification('beim Beitreten: ' + error.message, 'error');
     }
 }
 
@@ -313,14 +365,14 @@ async function showOrgSettings() {
         openModal('orgSettingsModal');
     } catch (error) {
         console.error('Show org settings error:', error);
-        alert('Fehler beim Laden der Einstellungen: ' + error.message);
+        showNotification('beim Laden der Einstellungen: ' + error.message, 'error');
     }
 }
 
 function copyInviteCode() {
     const code = document.getElementById('inviteCodeDisplay').textContent;
     navigator.clipboard.writeText(code).then(() => {
-        alert('Einladungscode kopiert!');
+        showNotification('Einladungscode kopiert!', 'success');
     });
 }
 
@@ -333,10 +385,10 @@ async function saveUserColor() {
             color: color
         });
 
-        alert('Farbe erfolgreich gespeichert!');
+        showNotification('Farbe erfolgreich gespeichert!', 'success');
     } catch (error) {
         console.error('Save user color error:', error);
-        alert('Fehler beim Speichern der Farbe: ' + error.message);
+        showNotification('beim Speichern der Farbe: ' + error.message, 'error');
     }
 }
 
@@ -411,7 +463,7 @@ async function loadFirestoreData() {
 
     } catch (error) {
         console.error('Load Firestore data error:', error);
-        alert('Fehler beim Laden der Daten: ' + error.message);
+        showNotification('beim Laden der Daten: ' + error.message, 'error');
     }
 }
 
@@ -594,7 +646,7 @@ function formatTimeInput(input) {
         input.value = value;
     } else {
         input.value = ''; // Invalid time, clear it
-        alert('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59');
+        showNotification('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59', 'warning');
     }
 }
 
@@ -677,7 +729,7 @@ function saveUser(event) {
     event.preventDefault();
 
     if (appData.users.length >= MAX_USERS) {
-        alert(`Maximale Anzahl von ${MAX_USERS} Benutzern erreicht!`);
+        showNotification(`Maximale Anzahl von ${MAX_USERS} Benutzern erreicht!`, 'warning');
         return;
     }
 
@@ -768,26 +820,49 @@ function renderClients() {
 async function saveClient(event) {
     event.preventDefault();
 
-    const clientId = generateId();
-    const client = {
+    const editId = document.getElementById('editClientId').value;
+    const isEdit = !!editId;
+    const clientId = isEdit ? editId : generateId();
+
+    const clientData = {
         name: document.getElementById('clientName').value.trim(),
         contact: document.getElementById('clientContact').value.trim(),
         email: document.getElementById('clientEmail').value.trim(),
         phone: document.getElementById('clientPhone').value.trim(),
         address: document.getElementById('clientAddress').value.trim(),
-        hourlyRate: parseFloat(document.getElementById('clientHourlyRate').value) || 0,
-        createdAt: new Date().toISOString()
+        hourlyRate: parseFloat(document.getElementById('clientHourlyRate').value) || 0
     };
 
-    try {
-        // Save to Firestore
-        await db.collection('organizations').doc(currentOrganization.id)
-            .collection('clients').doc(clientId).set(client);
+    if (!isEdit) {
+        clientData.createdAt = new Date().toISOString();
+    }
 
-        // Update local state
-        appData.clients.push({ id: clientId, ...client });
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        if (isEdit) {
+            // Update existing client
+            await orgRef.collection('clients').doc(clientId).update(clientData);
+
+            // Update local state
+            const clientIndex = appData.clients.findIndex(c => c.id === clientId);
+            if (clientIndex !== -1) {
+                appData.clients[clientIndex] = { ...appData.clients[clientIndex], ...clientData };
+            }
+
+            showNotification('Kunde erfolgreich aktualisiert', 'success');
+        } else {
+            // Create new client
+            await orgRef.collection('clients').doc(clientId).set(clientData);
+
+            // Update local state
+            appData.clients.push({ id: clientId, ...clientData });
+
+            showNotification('Kunde erfolgreich erstellt', 'success');
+        }
 
         document.getElementById('clientForm').reset();
+        document.getElementById('editClientId').value = '';
         closeModal('clientModal');
 
         renderClients();
@@ -795,7 +870,7 @@ async function saveClient(event) {
         updateDashboardStats();
     } catch (error) {
         console.error('Save client error:', error);
-        alert('Fehler beim Speichern des Kunden: ' + error.message);
+        showNotification('Fehler beim Speichern des Kunden: ' + error.message, 'error');
     }
 }
 
@@ -836,13 +911,36 @@ async function deleteClient(clientId) {
         populateExportDropdowns();
     } catch (error) {
         console.error('Delete client error:', error);
-        alert('Fehler beim Löschen des Kunden: ' + error.message);
+        showNotification('beim Löschen des Kunden: ' + error.message, 'error');
     }
 }
 
+function openClientModal() {
+    // Reset form for new client
+    document.getElementById('clientForm').reset();
+    document.getElementById('editClientId').value = '';
+    document.getElementById('clientModalTitle').textContent = 'Neuer Kunde';
+    openModal('clientModal');
+}
+
 function editClient(clientId) {
-    // For simplicity, reuse the create modal - in production, you'd want a separate edit flow
-    alert('Bearbeiten-Funktion: Bitte lösche den Kunden und erstelle ihn neu mit den aktualisierten Daten.');
+    const client = appData.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    // Fill form with client data
+    document.getElementById('editClientId').value = clientId;
+    document.getElementById('clientName').value = client.name;
+    document.getElementById('clientContact').value = client.contact || '';
+    document.getElementById('clientEmail').value = client.email || '';
+    document.getElementById('clientPhone').value = client.phone || '';
+    document.getElementById('clientAddress').value = client.address || '';
+    document.getElementById('clientHourlyRate').value = client.hourlyRate || '';
+
+    // Update modal title
+    document.getElementById('clientModalTitle').textContent = 'Kunde bearbeiten';
+
+    // Open modal
+    openModal('clientModal');
 }
 
 function calculateClientHours(clientId) {
@@ -918,9 +1016,12 @@ function renderProjects() {
 async function saveProject(event) {
     event.preventDefault();
 
-    const projectId = generateId();
+    const editId = document.getElementById('editProjectId').value;
+    const isEdit = !!editId;
+    const projectId = isEdit ? editId : generateId();
+
     const hourlyRateValue = document.getElementById('projectHourlyRate').value;
-    const project = {
+    const projectData = {
         clientId: document.getElementById('projectClient').value,
         name: document.getElementById('projectName').value.trim(),
         description: document.getElementById('projectDescription').value.trim(),
@@ -928,19 +1029,39 @@ async function saveProject(event) {
         hourlyRate: hourlyRateValue ? parseFloat(hourlyRateValue) : null,
         deadline: document.getElementById('projectDeadline').value,
         status: document.getElementById('projectStatus').value,
-        minInterval: parseInt(document.getElementById('projectMinInterval').value) || 15,
-        createdAt: new Date().toISOString()
+        minInterval: parseInt(document.getElementById('projectMinInterval').value) || 15
     };
 
-    try {
-        // Save to Firestore
-        await db.collection('organizations').doc(currentOrganization.id)
-            .collection('projects').doc(projectId).set(project);
+    if (!isEdit) {
+        projectData.createdAt = new Date().toISOString();
+    }
 
-        // Update local state
-        appData.projects.push({ id: projectId, ...project });
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        if (isEdit) {
+            // Update existing project
+            await orgRef.collection('projects').doc(projectId).update(projectData);
+
+            // Update local state
+            const projectIndex = appData.projects.findIndex(p => p.id === projectId);
+            if (projectIndex !== -1) {
+                appData.projects[projectIndex] = { ...appData.projects[projectIndex], ...projectData };
+            }
+
+            showNotification('Projekt erfolgreich aktualisiert', 'success');
+        } else {
+            // Create new project
+            await orgRef.collection('projects').doc(projectId).set(projectData);
+
+            // Update local state
+            appData.projects.push({ id: projectId, ...projectData });
+
+            showNotification('Projekt erfolgreich erstellt', 'success');
+        }
 
         document.getElementById('projectForm').reset();
+        document.getElementById('editProjectId').value = '';
         closeModal('projectModal');
 
         renderProjects();
@@ -948,7 +1069,7 @@ async function saveProject(event) {
         updateDashboardStats();
     } catch (error) {
         console.error('Save project error:', error);
-        alert('Fehler beim Speichern des Projekts: ' + error.message);
+        showNotification('Fehler beim Speichern des Projekts: ' + error.message, 'error');
     }
 }
 
@@ -979,12 +1100,39 @@ async function deleteProject(projectId) {
         populateExportDropdowns();
     } catch (error) {
         console.error('Delete project error:', error);
-        alert('Fehler beim Löschen des Projekts: ' + error.message);
+        showNotification('beim Löschen des Projekts: ' + error.message, 'error');
     }
 }
 
+function openProjectModal() {
+    // Reset form for new project
+    document.getElementById('projectForm').reset();
+    document.getElementById('editProjectId').value = '';
+    document.getElementById('projectModalTitle').textContent = 'Neues Projekt';
+    document.getElementById('projectMinInterval').value = '15'; // Set default
+    openModal('projectModal');
+}
+
 function editProject(projectId) {
-    alert('Bearbeiten-Funktion: Bitte lösche das Projekt und erstelle es neu mit den aktualisierten Daten.');
+    const project = appData.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // Fill form with project data
+    document.getElementById('editProjectId').value = projectId;
+    document.getElementById('projectClient').value = project.clientId;
+    document.getElementById('projectName').value = project.name;
+    document.getElementById('projectDescription').value = project.description || '';
+    document.getElementById('projectBudgetHours').value = project.budgetHours || '';
+    document.getElementById('projectHourlyRate').value = project.hourlyRate || '';
+    document.getElementById('projectDeadline').value = project.deadline || '';
+    document.getElementById('projectStatus').value = project.status;
+    document.getElementById('projectMinInterval').value = project.minInterval || 15;
+
+    // Update modal title
+    document.getElementById('projectModalTitle').textContent = 'Projekt bearbeiten';
+
+    // Open modal
+    openModal('projectModal');
 }
 
 function loadProjectsForClient(clientId) {
@@ -1039,7 +1187,7 @@ function toggleTimer() {
 
 function startTimer() {
     if (!currentFirebaseUser) {
-        alert('Bitte melde dich an!');
+        showNotification('Bitte melde dich an!', 'warning');
         return;
     }
 
@@ -1096,7 +1244,7 @@ async function saveTimeEntry(event) {
     event.preventDefault();
 
     if (!currentFirebaseUser) {
-        alert('Bitte melde dich an!');
+        showNotification('Bitte melde dich an!', 'warning');
         return;
     }
 
@@ -1118,7 +1266,7 @@ async function saveTimeEntry(event) {
     let duration = (end - start) / (1000 * 60 * 60);
 
     if (duration <= 0) {
-        alert('Die Endzeit muss nach der Startzeit liegen!');
+        showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
         return;
     }
 
@@ -1168,7 +1316,7 @@ async function saveTimeEntry(event) {
         populateFilterDropdowns();
     } catch (error) {
         console.error('Save time entry error:', error);
-        alert('Fehler beim Speichern des Zeiteintrags: ' + error.message);
+        showNotification('beim Speichern des Zeiteintrags: ' + error.message, 'error');
     }
 }
 
@@ -1250,7 +1398,7 @@ async function updateTimeEntry(event) {
     let duration = (end - start) / (1000 * 60 * 60);
 
     if (duration <= 0) {
-        alert('Die Endzeit muss nach der Startzeit liegen!');
+        showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
         return;
     }
 
@@ -1301,7 +1449,7 @@ async function updateTimeEntry(event) {
         updateCharts();
     } catch (error) {
         console.error('Update time entry error:', error);
-        alert('Fehler beim Aktualisieren des Eintrags: ' + error.message);
+        showNotification('beim Aktualisieren des Eintrags: ' + error.message, 'error');
     }
 }
 
@@ -1324,7 +1472,7 @@ async function deleteEntry(entryId) {
         updateCharts();
     } catch (error) {
         console.error('Delete entry error:', error);
-        alert('Fehler beim Löschen des Eintrags: ' + error.message);
+        showNotification('beim Löschen des Eintrags: ' + error.message, 'error');
     }
 }
 
@@ -1717,7 +1865,7 @@ function exportCSV() {
     }
 
     if (entries.length === 0) {
-        alert('Keine Einträge zum Exportieren gefunden!');
+        showNotification('Keine Einträge zum Exportieren gefunden!', 'info');
         return;
     }
 
@@ -1769,7 +1917,7 @@ function exportPDF(type) {
         month = document.getElementById('customerPdfMonth').value;
 
         if (!clientId) {
-            alert('Bitte wähle einen Kunden aus!');
+            showNotification('Bitte wähle einen Kunden aus!', 'warning');
             return;
         }
 
@@ -1806,7 +1954,7 @@ function exportPDF(type) {
     }
 
     if (entries.length === 0) {
-        alert('Keine Einträge zum Exportieren gefunden!');
+        showNotification('Keine Einträge zum Exportieren gefunden!', 'info');
         return;
     }
 
