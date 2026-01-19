@@ -242,20 +242,28 @@ service cloud.firestore {
 
 ## Lizenz
 
-LOTS ist unter einer **Dual-License** verfügbar:
+LOTS ist unter einer **Custom License** mit zwei Nutzungsmodellen verfügbar:
 
-### AGPL v3 (GNU Affero General Public License v3)
-- ✅ Private Nutzung erlaubt
-- ✅ Kommerzielle Nutzung erlaubt
-- ⚠️ Änderungen müssen unter gleicher Lizenz veröffentlicht werden
-- ⚠️ Auch bei Web/SaaS-Nutzung muss der Code offengelegt werden
+### 🆓 Private Nutzung (Kostenlos)
+- ✅ Kostenlose Nutzung für Privatpersonen und Non-Profit-Organisationen
+- ✅ Ändern und Weiterverbreiten erlaubt
+- ⚠️ Änderungen müssen öffentlich unter gleicher Lizenz verfügbar gemacht werden
+- ⚠️ Bei Web/SaaS-Bereitstellung muss der Quellcode verfügbar sein
 
-**Vollständiger Lizenztext**: Siehe [LICENSE](LICENSE) Datei
+### 💼 Kommerzielle Nutzung (Lizenzpflichtig)
+Jede kommerzielle Nutzung erfordert eine kostenpflichtige Lizenz:
 
-### Kommerzielle Lizenz
-Für kommerzielle Nutzung ohne die Verpflichtungen der AGPL v3 (z.B. ohne Code-Veröffentlichung) kann eine kommerzielle Lizenz erworben werden.
+**Standard Commercial License**
+- Code-Veröffentlichung bei Änderungen erforderlich
+- Für Unternehmen, die Open-Source-Anforderungen erfüllen können
+
+**Premium Commercial License**
+- Keine Code-Veröffentlichung erforderlich
+- Proprietäre Nutzung erlaubt
 
 **Kontakt für kommerzielle Lizenzierung**: [Deine Kontaktdaten hier einfügen]
+
+**Vollständiger Lizenztext**: Siehe [LICENSE](LICENSE) Datei
 
 ---
 

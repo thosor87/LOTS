@@ -1,30 +1,101 @@
-GNU AFFERO GENERAL PUBLIC LICENSE
-Version 3, 19 November 2007
+LOTS - LexOffice Time Scheduling
+Custom License Agreement
 
 Copyright (C) 2025 Thomas Sorowka
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
+All rights reserved.
 
 ---
 
-COMMERCIAL LICENSING
+DEFINITIONS
 
-For commercial use without the obligations of the AGPL v3 license,
-please contact the author to obtain a commercial license.
+"Software" refers to LOTS (LexOffice Time Scheduling) and all associated
+source code, documentation, and assets.
 
-Contact: [Deine Email-Adresse oder Website]
+"Private Use" means use by individuals or non-profit organizations for
+personal, educational, or non-commercial purposes.
+
+"Commercial Use" means any use in connection with a business, commercial
+enterprise, or for-profit activity, including but not limited to:
+- Use by companies, corporations, or commercial entities
+- Use to generate revenue or commercial advantage
+- Use in the course of business operations
+- Providing the Software as a service (SaaS)
+
+"Modification" means any derivative work, modification, or adaptation
+of the Software.
 
 ---
 
-Full license text: https://www.gnu.org/licenses/agpl-3.0.txt
+GRANT OF RIGHTS
+
+1. PRIVATE USE LICENSE (Free)
+
+   Subject to the terms of this license, you are granted a worldwide,
+   royalty-free, non-exclusive license to:
+
+   a) Use the Software for Private Use
+   b) Modify the Software for Private Use
+   c) Distribute the Software and Modifications for Private Use
+
+   CONDITIONS for Private Use:
+   - All Modifications must be made publicly available under this same license
+   - You must retain all copyright and license notices
+   - You must provide access to the source code of any Modifications
+   - If you make the Software available over a network (e.g., web service),
+     you must make the source code (including Modifications) available to users
+
+2. COMMERCIAL USE LICENSE (Paid)
+
+   Commercial Use of the Software requires a separate commercial license.
+
+   To obtain a commercial license, contact:
+   [Deine Email-Adresse oder Website]
+
+   Commercial licenses may include:
+   - Standard Commercial License (with source code disclosure requirement)
+   - Premium Commercial License (without source code disclosure requirement)
+
+   Using the Software for Commercial Use without a valid commercial license
+   is a violation of this license and applicable copyright laws.
+
+---
+
+SOURCE CODE DISCLOSURE REQUIREMENTS
+
+For Private Use and Standard Commercial License:
+- Any Modifications must be made publicly available
+- Source code must be provided in the preferred form for making modifications
+- If the Software is made available over a network, the complete source code
+  (including all Modifications) must be made available to all users
+
+Premium Commercial License holders may be exempt from source code disclosure.
+
+---
+
+LIMITATIONS AND DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+---
+
+TERMINATION
+
+This license is effective until terminated. Your rights under this license
+will terminate automatically without notice if you fail to comply with any
+of its terms. Upon termination, you must destroy all copies of the Software.
+
+---
+
+CONTACT
+
+For commercial licensing inquiries:
+[Deine Email-Adresse oder Website]
+
+For questions about this license:
+[Deine Email-Adresse oder Website]
