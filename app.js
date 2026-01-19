@@ -366,12 +366,19 @@ async function loadFirestoreData() {
         const tagsSet = new Set();
         appData.entries.forEach(entry => {
             if (entry.tags) {
-                entry.tags.split(',').forEach(tag => tagsSet.add(tag.trim()));
+                const tags = typeof entry.tags === 'string'
+                    ? entry.tags.split(',')
+                    : entry.tags;
+                tags.forEach(tag => {
+                    const trimmed = typeof tag === 'string' ? tag.trim() : tag;
+                    if (trimmed) tagsSet.add(trimmed);
+                });
             }
         });
         appData.tags = Array.from(tagsSet);
 
         console.log('Data loaded from Firestore:', appData);
+        console.log('Clients:', appData.clients.length, 'Projects:', appData.projects.length, 'Entries:', appData.entries.length);
 
     } catch (error) {
         console.error('Load Firestore data error:', error);
@@ -517,6 +524,61 @@ function setDefaultDates() {
     const monthInput = document.getElementById('customerPdfMonth');
     if (monthInput) {
         monthInput.value = today.substring(0, 7);
+    }
+
+    // Setup time input auto-formatting
+    setupTimeInputFormatting();
+}
+
+// Auto-format time inputs (12 → 12:00, 1245 → 12:45)
+function setupTimeInputFormatting() {
+    const timeInputs = [
+        'entryStartTime',
+        'entryEndTime',
+        'editEntryStartTime',
+        'editEntryEndTime'
+    ];
+
+    timeInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('blur', function() {
+                formatTimeInput(this);
+            });
+        }
+    });
+}
+
+function formatTimeInput(input) {
+    let value = input.value.replace(/[^0-9]/g, ''); // Remove non-digits
+
+    if (!value) return;
+
+    // Handle different input formats
+    if (value.length === 1 || value.length === 2) {
+        // "1" or "12" → "12:00"
+        value = value.padStart(2, '0') + ':00';
+    } else if (value.length === 3) {
+        // "123" → "01:23"
+        value = '0' + value[0] + ':' + value.substring(1);
+    } else if (value.length === 4) {
+        // "1245" → "12:45"
+        value = value.substring(0, 2) + ':' + value.substring(2);
+    } else if (value.length > 4) {
+        // Truncate to 4 digits
+        value = value.substring(0, 2) + ':' + value.substring(2, 4);
+    }
+
+    // Validate time
+    const parts = value.split(':');
+    const hours = parseInt(parts[0]);
+    const minutes = parseInt(parts[1]);
+
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        input.value = value;
+    } else {
+        input.value = ''; // Invalid time, clear it
+        alert('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59');
     }
 }
 
@@ -1086,9 +1148,9 @@ function renderTodayEntries() {
                     <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
                     <div class="entry-client">${client ? escapeHtml(client.name) : ''} ${user ? `• ${escapeHtml(user.name)}` : ''}</div>
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
-                    ${entry.tags.length > 0 ? `
+                    ${normalizeTags(entry.tags).length > 0 ? `
                         <div class="entry-tags">
-                            ${entry.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            ${normalizeTags(entry.tags).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -1506,7 +1568,7 @@ function updateDetailTable(entries) {
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
-                <td>${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>${normalizeTags(entry.tags).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
                 <td>${formatHours(entry.duration)}</td>
                 <td class="actions">
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
@@ -1834,6 +1896,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Normalize tags: convert string to array or return empty array
+function normalizeTags(tags) {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags;
+    if (typeof tags === 'string') {
+        return tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+    }
+    return [];
 }
 
 function formatHours(hours) {
