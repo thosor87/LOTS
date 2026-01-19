@@ -1454,7 +1454,8 @@ function updateTagChart(entries) {
     const tagHours = {};
 
     entries.forEach(entry => {
-        entry.tags.forEach(tag => {
+        const tags = normalizeTags(entry.tags);
+        tags.forEach(tag => {
             tagHours[tag] = (tagHours[tag] || 0) + entry.duration;
         });
     });
