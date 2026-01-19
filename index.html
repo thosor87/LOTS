@@ -18,6 +18,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
     <!-- Auth Screen (shown when not logged in) -->
     <div id="authScreen" class="auth-screen">
         <div class="auth-container">
@@ -203,7 +206,7 @@
                 <p>Verwalte deine Kunden und deren Kontaktdaten</p>
             </div>
 
-            <button class="btn btn-primary" onclick="openModal('clientModal')">+ Neuer Kunde</button>
+            <button class="btn btn-primary" onclick="openClientModal()">+ Neuer Kunde</button>
 
             <div class="cards-grid" id="clientsList">
                 <p class="empty-state">Noch keine Kunden angelegt ◉</p>
@@ -217,7 +220,7 @@
                 <p>Organisiere deine Projekte nach Kunden</p>
             </div>
 
-            <button class="btn btn-primary" onclick="openModal('projectModal')">+ Neues Projekt</button>
+            <button class="btn btn-primary" onclick="openProjectModal()">+ Neues Projekt</button>
 
             <div class="cards-grid" id="projectsList">
                 <p class="empty-state">Noch keine Projekte angelegt ✦</p>
@@ -399,10 +402,11 @@
     <div class="modal" id="clientModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Neuer Kunde</h3>
+                <h3 id="clientModalTitle">Neuer Kunde</h3>
                 <button class="modal-close" onclick="closeModal('clientModal')">×</button>
             </div>
             <form id="clientForm" onsubmit="saveClient(event)">
+                <input type="hidden" id="editClientId">
                 <div class="form-group">
                     <label for="clientName">Firmenname *</label>
                     <input type="text" id="clientName" required>
@@ -439,10 +443,11 @@
     <div class="modal" id="projectModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Neues Projekt</h3>
+                <h3 id="projectModalTitle">Neues Projekt</h3>
                 <button class="modal-close" onclick="closeModal('projectModal')">×</button>
             </div>
             <form id="projectForm" onsubmit="saveProject(event)">
+                <input type="hidden" id="editProjectId">
                 <div class="form-group">
                     <label for="projectClient">Kunde *</label>
                     <select id="projectClient" required>
