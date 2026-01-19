@@ -18,30 +18,74 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ================================================================================
 
-ADDITIONAL PERMISSIONS AND COMMERCIAL LICENSING
+DUAL LICENSING - CHOOSE YOUR LICENSE
 
-This software is available under a dual-license model:
-
-1. AGPL v3 License (Free for all use)
-   - You may use, modify, and distribute this software under AGPL v3
-   - All modifications must be made publicly available under AGPL v3
-   - If you make the software available over a network (e.g., SaaS/web service),
-     you must make the complete source code available to all users
-   - This applies to both private and commercial use
-
-2. Commercial License (Optional - for proprietary use)
-   - If you wish to use this software WITHOUT the source code disclosure
-     requirements of AGPL v3, you may obtain a commercial license
-   - Commercial licenses allow proprietary modifications and closed-source usage
-   - Contact for commercial licensing: [Your contact info]
+This software is available under a dual-license model. You may choose either:
 
 ================================================================================
 
-SUMMARY:
-- Free use (private & commercial) under AGPL v3 with source code disclosure
-- OR pay for a commercial license without source code disclosure requirement
+OPTION 1: AGPL v3 LICENSE (Free for all use)
+
+You may use, modify, and distribute this software under the terms of the
+GNU Affero General Public License v3.0 (AGPL v3) as described above.
+
+KEY REQUIREMENTS under AGPL v3:
+- Source code disclosure: All modifications must be made publicly available
+  under AGPL v3
+- Network use provision: If you make the software available over a network
+  (e.g., as a SaaS/web service), you MUST make the complete corresponding
+  source code (including all modifications) available to all users
+- License propagation: Any derivative works must also be licensed under AGPL v3
+- This applies to BOTH private and commercial use
+
+You are free to:
+✓ Use the software for any purpose (private or commercial)
+✓ Modify the source code
+✓ Distribute the software and your modifications
+
+You must:
+✗ Make all source code (including modifications) publicly available
+✗ License your modifications under AGPL v3
+✗ Provide source code to network users (if applicable)
+
+================================================================================
+
+OPTION 2: COMMERCIAL LICENSE (Paid - for proprietary use)
+
+If you wish to use this software WITHOUT the source code disclosure
+requirements of AGPL v3, you may obtain a commercial license.
+
+BENEFITS of Commercial License:
+✓ Proprietary modifications allowed (no source code disclosure required)
+✓ Closed-source usage permitted
+✓ No obligation to share your modifications
+✓ No network use provision (can offer as SaaS without source disclosure)
+✓ Freedom to create derivative works without AGPL restrictions
+
+COMMERCIAL LICENSE TERMS:
+- License is granted on a per-organization basis
+- Includes right to modify and use without source disclosure
+- Does not include right to sublicense or redistribute commercially
+- Specific terms, pricing, and conditions provided upon request
+
+To obtain a commercial license, contact:
+[Your Email or Website]
+
+================================================================================
+
+SUMMARY
+
+Choose the license that fits your needs:
+
+FREE OPTION (AGPL v3):
+  Use freely, but must share all source code modifications publicly
+
+PAID OPTION (Commercial License):
+  Pay for the freedom to keep modifications proprietary
 
 Full AGPL v3 license text: https://www.gnu.org/licenses/agpl-3.0.txt
 
 For commercial licensing inquiries, contact:
 [Your Email or Website]
+
+================================================================================
