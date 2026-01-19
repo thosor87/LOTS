@@ -668,12 +668,6 @@ function filterByProject(projectName) {
     }
 }
 
-function filterByTag(tagName) {
-    document.getElementById('filterTag').value = tagName;
-    updateCharts();
-    showNotification(`Gefiltert nach Tag: ${tagName}`, 'info');
-}
-
 function filterByUser(userName) {
     const entries = appData.entries;
     const entry = entries.find(e => e.userName === userName);
@@ -779,6 +773,9 @@ function filterByTag(tag) {
 
     // Update charts with filtered data
     updateCharts();
+
+    // Show notification
+    showNotification(`Gefiltert nach Tag: ${tag}`, 'info');
 
     // Scroll to analytics section
     const analyticsSection = document.getElementById('auswertung');
@@ -1528,7 +1525,7 @@ function editEntry(entryId) {
     setTimeout(() => {
         document.getElementById('editEntryProject').value = entry.projectId;
     }, 100);
-    document.getElementById('editEntryTags').value = entry.tags.join(', ');
+    document.getElementById('editEntryTags').value = normalizeTags(entry.tags).join(', ');
     document.getElementById('editEntryDescription').value = entry.description;
 
     openModal('editEntryModal');
@@ -1819,7 +1816,11 @@ function getFilteredEntries() {
         entries = entries.filter(e => e.projectId === projectId);
     }
     if (tag) {
-        entries = entries.filter(e => normalizeTags(e.tags).includes(tag));
+        if (tag === 'ohne Tags') {
+            entries = entries.filter(e => normalizeTags(e.tags).length === 0);
+        } else {
+            entries = entries.filter(e => normalizeTags(e.tags).includes(tag));
+        }
     }
     if (userId) {
         entries = entries.filter(e => e.userId === userId);
@@ -1990,8 +1991,16 @@ function updateDetailTable(entries) {
 function populateFilterDropdowns() {
     // Tags dropdown
     const tagSelect = document.getElementById('filterTag');
-    tagSelect.innerHTML = '<option value="">Alle Tags</option>' +
-        appData.tags.map(t => `<option value="${t}">${escapeHtml(t)}</option>`).join('');
+    let tagOptions = '<option value="">Alle Tags</option>';
+
+    // Check if there are entries without tags
+    const hasEntriesWithoutTags = appData.entries.some(e => normalizeTags(e.tags).length === 0);
+    if (hasEntriesWithoutTags) {
+        tagOptions += '<option value="ohne Tags">ohne Tags</option>';
+    }
+
+    tagOptions += appData.tags.map(t => `<option value="${t}">${escapeHtml(t)}</option>`).join('');
+    tagSelect.innerHTML = tagOptions;
 
     // Users dropdown - extract unique users from entries
     const userSelect = document.getElementById('filterUser');
