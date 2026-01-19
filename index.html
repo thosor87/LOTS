@@ -85,15 +85,37 @@
                 <span class="logo-icon">◆</span>
                 <span class="logo-text">LOTS</span>
             </div>
-            <nav class="nav">
-                <a href="#dashboard" class="nav-link active">Dashboard</a>
-                <a href="#zeiterfassung" class="nav-link">Zeiterfassung</a>
-                <a href="#kunden" class="nav-link">Kunden</a>
-                <a href="#projekte" class="nav-link">Projekte</a>
-                <a href="#auswertung" class="nav-link">Auswertung</a>
-                <a href="#export" class="nav-link">Export</a>
+
+            <!-- Burger Menu Button (mobile only) -->
+            <button class="burger-menu" onclick="toggleMobileMenu()" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <nav class="nav" id="mobileNav">
+                <a href="#dashboard" class="nav-link active" onclick="closeMobileMenu()">Dashboard</a>
+                <a href="#zeiterfassung" class="nav-link" onclick="closeMobileMenu()">Zeiterfassung</a>
+                <a href="#kunden" class="nav-link" onclick="closeMobileMenu()">Kunden</a>
+                <a href="#projekte" class="nav-link" onclick="closeMobileMenu()">Projekte</a>
+                <a href="#auswertung" class="nav-link" onclick="closeMobileMenu()">Auswertung</a>
+                <a href="#export" class="nav-link" onclick="closeMobileMenu()">Export</a>
+
+                <!-- Mobile User Menu (shown in mobile nav) -->
+                <div class="mobile-user-menu">
+                    <div id="userInfoMobile" class="user-info-mobile">
+                        <span id="currentUserNameMobile" class="user-name"></span>
+                        <span id="orgNameMobile" class="org-name"></span>
+                    </div>
+                    <button class="btn btn-small btn-secondary" onclick="toggleDarkMode(); closeMobileMenu();">
+                        <span id="darkModeIconMobile">🌙</span> Dark Mode
+                    </button>
+                    <button class="btn btn-small btn-secondary" onclick="showOrgSettings(); closeMobileMenu();">⚙ Einstellungen</button>
+                    <button class="btn btn-small btn-secondary" onclick="signOut()">Abmelden</button>
+                </div>
             </nav>
-            <div class="user-menu">
+
+            <div class="user-menu desktop-only">
                 <div id="userInfo" class="user-info">
                     <span id="currentUserName" class="user-name"></span>
                     <span id="orgName" class="org-name"></span>
@@ -106,6 +128,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="closeMobileMenu()"></div>
 
     <!-- Stats Bar (shown when logged in) -->
     <div id="statsBar" class="stats-bar" style="display: none;">

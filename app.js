@@ -214,6 +214,9 @@ function showApp() {
     document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
     document.getElementById('orgName').textContent = currentOrganization?.name || '';
 
+    // Update mobile user info
+    updateMobileUserInfo();
+
     initializeApp();
     setupNavigation();
     setDefaultDates();
@@ -919,6 +922,49 @@ function setupNavigation() {
 function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ============================================
+// MOBILE MENU FUNCTIONS
+// ============================================
+
+function toggleMobileMenu() {
+    const nav = document.getElementById('mobileNav');
+    const overlay = document.getElementById('mobileMenuOverlay');
+    const burger = document.querySelector('.burger-menu');
+
+    nav.classList.toggle('mobile-active');
+    overlay.classList.toggle('active');
+    burger.classList.toggle('active');
+
+    // Prevent body scroll when menu is open
+    if (nav.classList.contains('mobile-active')) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+}
+
+function closeMobileMenu() {
+    const nav = document.getElementById('mobileNav');
+    const overlay = document.getElementById('mobileMenuOverlay');
+    const burger = document.querySelector('.burger-menu');
+
+    nav.classList.remove('mobile-active');
+    overlay.classList.remove('active');
+    burger.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Sync mobile user info with desktop
+function updateMobileUserInfo() {
+    const userName = document.getElementById('currentUserName').textContent;
+    const orgName = document.getElementById('orgName').textContent;
+
+    document.getElementById('currentUserNameMobile').textContent = userName;
+    document.getElementById('orgNameMobile').textContent = orgName;
+}
+
+// ============================================
 
 function filterByTag(tag) {
     // Set the tag filter
