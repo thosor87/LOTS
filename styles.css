@@ -5,10 +5,10 @@
 
 /* === CSS Variables === */
 :root {
-    /* Primärfarben - Lila Palette */
-    --primary: #9B59B6;
-    --primary-dark: #8E44AD;
-    --primary-light: #BB8FCE;
+    /* Primärfarben - LILAPIXEL Lila Palette */
+    --primary: #660066;
+    --primary-dark: #4a004a;
+    --primary-light: #7B2D8E;
     --primary-lighter: #E8DAEF;
 
     /* Akzentfarben */
@@ -60,10 +60,10 @@
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-    /* Primärfarben - angepasst für Dark Mode */
-    --primary: #BB8FCE;
-    --primary-dark: #9B59B6;
-    --primary-light: #D7BDE2;
+    /* Primärfarben - LILAPIXEL angepasst für Dark Mode */
+    --primary: #7B2D8E;
+    --primary-dark: #660066;
+    --primary-light: #9B59B6;
     --primary-lighter: #34495E;
 
     /* Akzentfarben */
@@ -105,7 +105,7 @@ html {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Source Sans Pro', Helvetica, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--background);
     color: var(--dark);
     line-height: 1.6;
@@ -877,7 +877,7 @@ a:hover {
 
 /* === Footer === */
 .footer {
-    background: var(--dark);
+    background: #660066;
     color: var(--white);
     padding: var(--spacing-2xl) var(--spacing-xl);
     text-align: center;
