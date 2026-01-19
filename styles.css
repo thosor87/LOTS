@@ -483,6 +483,32 @@ a:hover {
     min-height: 80px;
 }
 
+.form-group input[type="color"] {
+    padding: 4px;
+    height: 48px;
+    width: 120px;
+    cursor: pointer;
+    border: 2px solid var(--gray-light);
+}
+
+.form-group input[type="color"]:hover {
+    border-color: var(--primary);
+}
+
+.form-group input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.form-group input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.form-group input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
 .form-note {
     font-size: 0.85rem;
     color: var(--gray);
