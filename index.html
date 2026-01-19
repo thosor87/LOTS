@@ -173,11 +173,16 @@
                             </div>
                             <div class="form-group">
                                 <label for="entryStartTime">Startzeit</label>
-                                <input type="time" id="entryStartTime" required>
+                                <input type="time" id="entryStartTime">
                             </div>
                             <div class="form-group">
                                 <label for="entryEndTime">Endzeit</label>
-                                <input type="time" id="entryEndTime" required>
+                                <input type="time" id="entryEndTime">
+                            </div>
+                            <div class="form-group">
+                                <label for="entryDuration">Dauer (Stunden)</label>
+                                <input type="number" id="entryDuration" step="0.25" min="0" placeholder="z.B. 2.5">
+                                <small>Optional: z.B. 2.5 für 2h 30min</small>
                             </div>
                             <div class="form-group">
                                 <label for="entryClient">Kunde</label>
@@ -637,11 +642,16 @@
                     </div>
                     <div class="form-group">
                         <label for="editEntryStartTime">Startzeit</label>
-                        <input type="time" id="editEntryStartTime" required>
+                        <input type="time" id="editEntryStartTime">
                     </div>
                     <div class="form-group">
                         <label for="editEntryEndTime">Endzeit</label>
-                        <input type="time" id="editEntryEndTime" required>
+                        <input type="time" id="editEntryEndTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryDuration">Dauer (Stunden)</label>
+                        <input type="number" id="editEntryDuration" step="0.25" min="0" placeholder="z.B. 2.5">
+                        <small>Optional: z.B. 2.5 für 2h 30min</small>
                     </div>
                     <div class="form-group">
                         <label for="editEntryClient">Kunde</label>
