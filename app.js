@@ -199,12 +199,16 @@ async function handleAuthStateChange(user) {
 function showAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appContent').style.display = 'none';
+    const statsBar = document.getElementById('statsBar');
+    if (statsBar) statsBar.style.display = 'none';
 }
 
 function showApp() {
     console.log('showApp() called');
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
+    const statsBar = document.getElementById('statsBar');
+    if (statsBar) statsBar.style.display = 'block';
 
     // Update user info in header
     document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
@@ -1446,8 +1450,8 @@ function quickStartProject(projectId) {
 
     // Fill form
     document.getElementById('entryDate').value = today;
-    document.getElementById('entryStartTime').value = currentTime;
-    document.getElementById('entryEndTime').value = ''; // User fills this in
+    document.getElementById('entryStartTime').value = ''; // User fills this in
+    document.getElementById('entryEndTime').value = currentTime;
     document.getElementById('entryClient').value = project.clientId;
 
     // Load projects for client, then select project
@@ -1456,10 +1460,10 @@ function quickStartProject(projectId) {
         document.getElementById('entryProject').value = projectId;
     }, 100);
 
-    // Scroll to form
-    document.getElementById('entryEndTime').focus();
+    // Focus on start time
+    document.getElementById('entryStartTime').focus();
 
-    showNotification('Projekt vorausgewählt - bitte Endzeit eintragen', 'info');
+    showNotification('Projekt vorausgewählt - bitte Startzeit eintragen', 'info');
 }
 
 function editEntry(entryId) {

@@ -1540,3 +1540,63 @@ a:hover {
         flex-direction: column;
     }
 }
+
+/* === Stats Bar === */
+.stats-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-lighter);
+    padding: var(--spacing-sm) 0;
+    position: sticky;
+    top: 70px;
+    z-index: 99;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stats-bar-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-xl);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-3xl);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.stat-item .stat-icon {
+    font-size: 1.2rem;
+    color: var(--primary);
+}
+
+.stat-item .stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+.stat-item .stat-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+    .stats-bar-content {
+        gap: var(--spacing-lg);
+        padding: 0 var(--spacing-md);
+        flex-wrap: wrap;
+        justify-content: space-around;
+    }
+
+    .stat-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 2px;
+    }
+}

@@ -100,38 +100,35 @@
         </div>
     </header>
 
+    <!-- Stats Bar (shown when logged in) -->
+    <div id="statsBar" class="stats-bar" style="display: none;">
+        <div class="stats-bar-content">
+            <div class="stat-item">
+                <span class="stat-icon">◉</span>
+                <span class="stat-value" id="totalHoursToday">0h</span>
+                <span class="stat-label">Heute</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">◆</span>
+                <span class="stat-value" id="totalHoursMonth">0h</span>
+                <span class="stat-label">Monat</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">✦</span>
+                <span class="stat-value" id="activeProjects">0</span>
+                <span class="stat-label">Projekte</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">+</span>
+                <span class="stat-value" id="totalClients">0</span>
+                <span class="stat-label">Kunden</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content (hidden until logged in) -->
     <div id="appContent" style="display: none;">
-    <main class="main">
-        <!-- Hero Section -->
-        <section class="hero" id="dashboard">
-            <div class="hero-content">
-                <h1>Willkommen bei <span class="accent">LOTS</span> ✦</h1>
-                <p class="hero-subtitle">LexOffice Time Scheduling – Professionelle Zeiterfassung für Teams</p>
-                <div class="hero-stats">
-                    <div class="stat-card">
-                        <span class="stat-icon">◉</span>
-                        <span class="stat-value" id="totalHoursToday">0h</span>
-                        <span class="stat-label">Heute erfasst</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">◆</span>
-                        <span class="stat-value" id="totalHoursMonth">0h</span>
-                        <span class="stat-label">Diesen Monat</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">✦</span>
-                        <span class="stat-value" id="activeProjects">0</span>
-                        <span class="stat-label">Aktive Projekte</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">+</span>
-                        <span class="stat-value" id="totalClients">0</span>
-                        <span class="stat-label">Kunden</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <main class="main" id="dashboard">
 
         <!-- Zeiterfassung Section -->
         <section class="section" id="zeiterfassung">
