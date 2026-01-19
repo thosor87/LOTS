@@ -1086,9 +1086,9 @@ function renderTodayEntries() {
                     <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
                     <div class="entry-client">${client ? escapeHtml(client.name) : ''} ${user ? `• ${escapeHtml(user.name)}` : ''}</div>
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
-                    ${entry.tags.length > 0 ? `
+                    ${normalizeTags(entry.tags).length > 0 ? `
                         <div class="entry-tags">
-                            ${entry.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            ${normalizeTags(entry.tags).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -1506,7 +1506,7 @@ function updateDetailTable(entries) {
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
-                <td>${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>${normalizeTags(entry.tags).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
                 <td>${formatHours(entry.duration)}</td>
                 <td class="actions">
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
@@ -1834,6 +1834,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Normalize tags: convert string to array or return empty array
+function normalizeTags(tags) {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags;
+    if (typeof tags === 'string') {
+        return tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+    }
+    return [];
 }
 
 function formatHours(hours) {
