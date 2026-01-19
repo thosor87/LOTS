@@ -445,8 +445,29 @@ async function leaveOrganization() {
     if (confirmed) {
         try {
             closeModal('orgSettingsModal');
-            await signOut();
-            showNotification('Erfolgreich abgemeldet', 'success');
+
+            // Remove organizationId from user document (but keep user in org members)
+            await db.collection('users').doc(currentFirebaseUser.uid).update({
+                organizationId: firebase.firestore.FieldValue.delete()
+            });
+
+            // Clear local data
+            currentOrganization = null;
+            appData.clients = [];
+            appData.projects = [];
+            appData.entries = [];
+            appData.tags = [];
+            appData.userColors = {};
+
+            // Unsubscribe from Firestore listeners
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+
+            // Show organization setup screen
+            showAuthScreen();
+            showOrgSetup();
+
+            showNotification('Organisation verlassen', 'success');
         } catch (error) {
             console.error('Leave organization error:', error);
             showNotification('Fehler beim Verlassen: ' + error.message, 'error');
