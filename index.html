@@ -94,24 +94,32 @@
             </button>
 
             <nav class="nav" id="mobileNav">
-                <a href="#dashboard" class="nav-link active" onclick="closeMobileMenu()">Dashboard</a>
-                <a href="#zeiterfassung" class="nav-link" onclick="closeMobileMenu()">Zeiterfassung</a>
+                <a href="#zeiterfassung" class="nav-link active" onclick="closeMobileMenu()">Zeiterfassung</a>
                 <a href="#kunden" class="nav-link" onclick="closeMobileMenu()">Kunden</a>
                 <a href="#projekte" class="nav-link" onclick="closeMobileMenu()">Projekte</a>
                 <a href="#auswertung" class="nav-link" onclick="closeMobileMenu()">Auswertung</a>
                 <a href="#export" class="nav-link" onclick="closeMobileMenu()">Export</a>
 
-                <!-- Mobile User Menu (shown in mobile nav) -->
-                <div class="mobile-user-menu">
-                    <div id="userInfoMobile" class="user-info-mobile">
-                        <span id="currentUserNameMobile" class="user-name"></span>
-                        <span id="orgNameMobile" class="org-name"></span>
+                <!-- Mobile User Section (shown in mobile nav) -->
+                <div class="mobile-user-section">
+                    <div class="mobile-user-info">
+                        <div class="user-avatar">👤</div>
+                        <div class="user-details">
+                            <span id="currentUserNameMobile" class="user-name-mobile"></span>
+                            <span id="orgNameMobile" class="org-name-mobile"></span>
+                        </div>
                     </div>
-                    <button class="btn btn-small btn-secondary" onclick="toggleDarkMode(); closeMobileMenu();">
-                        <span id="darkModeIconMobile">🌙</span> Dark Mode
-                    </button>
-                    <button class="btn btn-small btn-secondary" onclick="showOrgSettings(); closeMobileMenu();">⚙ Einstellungen</button>
-                    <button class="btn btn-small btn-secondary" onclick="signOut()">Abmelden</button>
+                    <div class="mobile-actions">
+                        <button class="mobile-action-btn" onclick="toggleDarkMode(); closeMobileMenu();" title="Dark Mode">
+                            <span id="darkModeIconMobile">🌙</span>
+                        </button>
+                        <button class="mobile-action-btn" onclick="showOrgSettings(); closeMobileMenu();" title="Einstellungen">
+                            ⚙️
+                        </button>
+                        <button class="mobile-action-btn logout" onclick="signOut()" title="Abmelden">
+                            🚪
+                        </button>
+                    </div>
                 </div>
             </nav>
 
