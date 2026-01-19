@@ -1,0 +1,1360 @@
+/**
+ * LOTS - LexOffice Time Scheduling
+ * Main Application JavaScript
+ */
+
+// ============================================
+// DATA STORAGE
+// ============================================
+
+const STORAGE_KEYS = {
+    USERS: 'lots_users',
+    CLIENTS: 'lots_clients',
+    PROJECTS: 'lots_projects',
+    ENTRIES: 'lots_entries',
+    CURRENT_USER: 'lots_current_user',
+    TAGS: 'lots_tags'
+};
+
+const MAX_USERS = 5;
+
+// Default data structure
+let appData = {
+    users: [],
+    clients: [],
+    projects: [],
+    entries: [],
+    tags: []
+};
+
+let currentUser = null;
+let timerInterval = null;
+let timerSeconds = 0;
+let timerRunning = false;
+let timerStartTime = null;
+
+// Chart instances
+let charts = {
+    client: null,
+    project: null,
+    daily: null,
+    monthly: null,
+    tag: null,
+    user: null
+};
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    initializeApp();
+    setupNavigation();
+    setDefaultDates();
+});
+
+function initializeApp() {
+    renderUsers();
+    renderClients();
+    renderProjects();
+    renderTodayEntries();
+    updateDashboardStats();
+    populateFilterDropdowns();
+    populateExportDropdowns();
+    initCharts();
+    updateCharts();
+}
+
+function loadData() {
+    appData.users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+    appData.clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS)) || [];
+    appData.projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)) || [];
+    appData.entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES)) || [];
+    appData.tags = JSON.parse(localStorage.getItem(STORAGE_KEYS.TAGS)) || [];
+
+    const savedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (savedUserId) {
+        currentUser = appData.users.find(u => u.id === savedUserId);
+    }
+}
+
+function saveData() {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(appData.users));
+    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(appData.clients));
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(appData.projects));
+    localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(appData.entries));
+    localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(appData.tags));
+}
+
+function setDefaultDates() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('entryDate').value = today;
+
+    // Filter default: current month
+    const firstOfMonth = new Date();
+    firstOfMonth.setDate(1);
+    document.getElementById('filterStartDate').value = firstOfMonth.toISOString().split('T')[0];
+    document.getElementById('filterEndDate').value = today;
+
+    // Export default: current month
+    const monthInput = document.getElementById('customerPdfMonth');
+    if (monthInput) {
+        monthInput.value = today.substring(0, 7);
+    }
+}
+
+// ============================================
+// NAVIGATION
+// ============================================
+
+function setupNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+        });
+    });
+
+    // Smooth scroll with offset for fixed header
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                const headerOffset = 100;
+                const elementPosition = target.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+}
+
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+function renderUsers() {
+    const select = document.getElementById('currentUser');
+    const filterSelect = document.getElementById('filterUser');
+
+    select.innerHTML = '<option value="">Benutzer wählen...</option>';
+    filterSelect.innerHTML = '<option value="">Alle Benutzer</option>';
+
+    appData.users.forEach(user => {
+        select.innerHTML += `<option value="${user.id}" ${currentUser && currentUser.id === user.id ? 'selected' : ''}>${user.name}</option>`;
+        filterSelect.innerHTML += `<option value="${user.id}">${user.name}</option>`;
+    });
+}
+
+function saveUser(event) {
+    event.preventDefault();
+
+    if (appData.users.length >= MAX_USERS) {
+        alert(`Maximale Anzahl von ${MAX_USERS} Benutzern erreicht!`);
+        return;
+    }
+
+    const user = {
+        id: generateId(),
+        name: document.getElementById('userName').value.trim(),
+        email: document.getElementById('userEmail').value.trim(),
+        color: document.getElementById('userColor').value,
+        createdAt: new Date().toISOString()
+    };
+
+    appData.users.push(user);
+    saveData();
+
+    document.getElementById('userForm').reset();
+    document.getElementById('userColor').value = '#9B59B6';
+    closeModal('userModal');
+
+    renderUsers();
+    updateCharts();
+}
+
+function switchUser(userId) {
+    currentUser = appData.users.find(u => u.id === userId) || null;
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, userId);
+    renderTodayEntries();
+    updateDashboardStats();
+}
+
+// ============================================
+// CLIENT MANAGEMENT
+// ============================================
+
+function renderClients() {
+    const container = document.getElementById('clientsList');
+    const entrySelect = document.getElementById('entryClient');
+    const editEntrySelect = document.getElementById('editEntryClient');
+    const projectSelect = document.getElementById('projectClient');
+    const filterSelect = document.getElementById('filterClient');
+
+    // Render client cards
+    if (appData.clients.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Kunden angelegt ◉</p>';
+    } else {
+        container.innerHTML = appData.clients.map(client => {
+            const projectCount = appData.projects.filter(p => p.clientId === client.id).length;
+            const totalHours = calculateClientHours(client.id);
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${escapeHtml(client.name)}</div>
+                            ${client.contact ? `<div class="card-subtitle">${escapeHtml(client.contact)}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-meta">
+                            ${client.email ? `<span>📧 ${escapeHtml(client.email)}</span>` : ''}
+                            ${client.phone ? `<span>📞 ${escapeHtml(client.phone)}</span>` : ''}
+                            ${client.hourlyRate ? `<span>💰 ${client.hourlyRate}€/Std.</span>` : ''}
+                            <span>📁 ${projectCount} Projekte</span>
+                            <span>⏱️ ${formatHours(totalHours)} erfasst</span>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-small btn-secondary" onclick="editClient('${client.id}')">Bearbeiten</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteClient('${client.id}')">Löschen</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Populate select dropdowns
+    const clientOptions = '<option value="">Kunde wählen...</option>' +
+        appData.clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+    const clientOptionsAll = '<option value="">Alle Kunden</option>' +
+        appData.clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+    entrySelect.innerHTML = clientOptions;
+    editEntrySelect.innerHTML = clientOptions;
+    projectSelect.innerHTML = clientOptions;
+    filterSelect.innerHTML = clientOptionsAll;
+}
+
+function saveClient(event) {
+    event.preventDefault();
+
+    const client = {
+        id: generateId(),
+        name: document.getElementById('clientName').value.trim(),
+        contact: document.getElementById('clientContact').value.trim(),
+        email: document.getElementById('clientEmail').value.trim(),
+        phone: document.getElementById('clientPhone').value.trim(),
+        address: document.getElementById('clientAddress').value.trim(),
+        hourlyRate: parseFloat(document.getElementById('clientHourlyRate').value) || 0,
+        createdAt: new Date().toISOString()
+    };
+
+    appData.clients.push(client);
+    saveData();
+
+    document.getElementById('clientForm').reset();
+    closeModal('clientModal');
+
+    renderClients();
+    populateExportDropdowns();
+    updateDashboardStats();
+}
+
+function deleteClient(clientId) {
+    if (!confirm('Möchtest du diesen Kunden wirklich löschen? Alle zugehörigen Projekte und Zeiteinträge werden ebenfalls gelöscht!')) {
+        return;
+    }
+
+    // Delete associated projects and entries
+    const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
+    appData.entries = appData.entries.filter(e => !projectIds.includes(e.projectId));
+    appData.projects = appData.projects.filter(p => p.clientId !== clientId);
+    appData.clients = appData.clients.filter(c => c.id !== clientId);
+
+    saveData();
+    renderClients();
+    renderProjects();
+    renderTodayEntries();
+    updateDashboardStats();
+    updateCharts();
+    populateExportDropdowns();
+}
+
+function editClient(clientId) {
+    // For simplicity, reuse the create modal - in production, you'd want a separate edit flow
+    alert('Bearbeiten-Funktion: Bitte lösche den Kunden und erstelle ihn neu mit den aktualisierten Daten.');
+}
+
+function calculateClientHours(clientId) {
+    const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
+    return appData.entries
+        .filter(e => projectIds.includes(e.projectId))
+        .reduce((sum, e) => sum + e.duration, 0);
+}
+
+// ============================================
+// PROJECT MANAGEMENT
+// ============================================
+
+function renderProjects() {
+    const container = document.getElementById('projectsList');
+    const entrySelect = document.getElementById('entryProject');
+    const editEntrySelect = document.getElementById('editEntryProject');
+    const filterSelect = document.getElementById('filterProject');
+
+    if (appData.projects.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Projekte angelegt ✦</p>';
+    } else {
+        container.innerHTML = appData.projects.map(project => {
+            const client = appData.clients.find(c => c.id === project.clientId);
+            const totalHours = calculateProjectHours(project.id);
+            const budgetPercent = project.budgetHours ? Math.min(100, (totalHours / project.budgetHours) * 100) : 0;
+            const budgetClass = budgetPercent > 90 ? 'danger' : budgetPercent > 75 ? 'warning' : '';
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${escapeHtml(project.name)}</div>
+                            <div class="card-subtitle">${client ? escapeHtml(client.name) : 'Unbekannter Kunde'}</div>
+                        </div>
+                        <span class="status-badge status-${project.status}">${getStatusLabel(project.status)}</span>
+                    </div>
+                    <div class="card-content">
+                        ${project.description ? `<p style="margin-bottom: var(--spacing-md);">${escapeHtml(project.description)}</p>` : ''}
+                        <div class="card-meta">
+                            <span>⏱️ ${formatHours(totalHours)} erfasst${project.budgetHours ? ` / ${formatHours(project.budgetHours)} Budget` : ''}</span>
+                            ${project.deadline ? `<span>📅 Deadline: ${formatDate(project.deadline)}</span>` : ''}
+                        </div>
+                        ${project.budgetHours ? `
+                            <div class="progress-bar">
+                                <div class="progress-fill ${budgetClass}" style="width: ${budgetPercent}%"></div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-small btn-secondary" onclick="editProject('${project.id}')">Bearbeiten</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteProject('${project.id}')">Löschen</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Populate filter dropdown with all projects
+    filterSelect.innerHTML = '<option value="">Alle Projekte</option>' +
+        appData.projects.map(p => {
+            const client = appData.clients.find(c => c.id === p.clientId);
+            return `<option value="${p.id}">${escapeHtml(p.name)} (${client ? escapeHtml(client.name) : ''})</option>`;
+        }).join('');
+}
+
+function saveProject(event) {
+    event.preventDefault();
+
+    const project = {
+        id: generateId(),
+        clientId: document.getElementById('projectClient').value,
+        name: document.getElementById('projectName').value.trim(),
+        description: document.getElementById('projectDescription').value.trim(),
+        budgetHours: parseFloat(document.getElementById('projectBudgetHours').value) || 0,
+        deadline: document.getElementById('projectDeadline').value,
+        status: document.getElementById('projectStatus').value,
+        createdAt: new Date().toISOString()
+    };
+
+    appData.projects.push(project);
+    saveData();
+
+    document.getElementById('projectForm').reset();
+    closeModal('projectModal');
+
+    renderProjects();
+    populateExportDropdowns();
+    updateDashboardStats();
+}
+
+function deleteProject(projectId) {
+    if (!confirm('Möchtest du dieses Projekt wirklich löschen? Alle zugehörigen Zeiteinträge werden ebenfalls gelöscht!')) {
+        return;
+    }
+
+    appData.entries = appData.entries.filter(e => e.projectId !== projectId);
+    appData.projects = appData.projects.filter(p => p.id !== projectId);
+
+    saveData();
+    renderProjects();
+    renderTodayEntries();
+    updateDashboardStats();
+    updateCharts();
+    populateExportDropdowns();
+}
+
+function editProject(projectId) {
+    alert('Bearbeiten-Funktion: Bitte lösche das Projekt und erstelle es neu mit den aktualisierten Daten.');
+}
+
+function loadProjectsForClient(clientId) {
+    const select = document.getElementById('entryProject');
+    const projects = appData.projects.filter(p => p.clientId === clientId && p.status === 'active');
+
+    select.innerHTML = '<option value="">Projekt wählen...</option>' +
+        projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+}
+
+function loadProjectsForClientEdit(clientId) {
+    const select = document.getElementById('editEntryProject');
+    const projects = appData.projects.filter(p => p.clientId === clientId);
+
+    select.innerHTML = '<option value="">Projekt wählen...</option>' +
+        projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+}
+
+function calculateProjectHours(projectId) {
+    return appData.entries
+        .filter(e => e.projectId === projectId)
+        .reduce((sum, e) => sum + e.duration, 0);
+}
+
+function getStatusLabel(status) {
+    const labels = {
+        active: 'Aktiv',
+        paused: 'Pausiert',
+        completed: 'Abgeschlossen'
+    };
+    return labels[status] || status;
+}
+
+// ============================================
+// TIMER
+// ============================================
+
+function toggleTimer() {
+    if (timerRunning) {
+        stopTimer();
+    } else {
+        startTimer();
+    }
+}
+
+function startTimer() {
+    if (!currentUser) {
+        alert('Bitte wähle zuerst einen Benutzer aus!');
+        return;
+    }
+
+    timerRunning = true;
+    timerStartTime = new Date();
+
+    document.getElementById('timerBtnText').textContent = '⏸ Pause';
+    document.getElementById('startStopBtn').classList.remove('btn-primary');
+    document.getElementById('startStopBtn').classList.add('btn-accent');
+
+    timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+    }, 1000);
+}
+
+function stopTimer() {
+    timerRunning = false;
+    clearInterval(timerInterval);
+
+    document.getElementById('timerBtnText').textContent = '▶ Start';
+    document.getElementById('startStopBtn').classList.add('btn-primary');
+    document.getElementById('startStopBtn').classList.remove('btn-accent');
+
+    // Auto-fill time fields
+    if (timerStartTime && timerSeconds > 0) {
+        const endTime = new Date();
+        document.getElementById('entryStartTime').value = formatTimeForInput(timerStartTime);
+        document.getElementById('entryEndTime').value = formatTimeForInput(endTime);
+    }
+}
+
+function resetTimer() {
+    stopTimer();
+    timerSeconds = 0;
+    timerStartTime = null;
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const hours = Math.floor(timerSeconds / 3600);
+    const minutes = Math.floor((timerSeconds % 3600) / 60);
+    const seconds = timerSeconds % 60;
+
+    document.getElementById('timerDisplay').textContent =
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+// ============================================
+// TIME ENTRIES
+// ============================================
+
+function saveTimeEntry(event) {
+    event.preventDefault();
+
+    if (!currentUser) {
+        alert('Bitte wähle zuerst einen Benutzer aus!');
+        return;
+    }
+
+    const date = document.getElementById('entryDate').value;
+    const startTime = document.getElementById('entryStartTime').value;
+    const endTime = document.getElementById('entryEndTime').value;
+    const clientId = document.getElementById('entryClient').value;
+    const projectId = document.getElementById('entryProject').value;
+    const tags = document.getElementById('entryTags').value
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
+    const description = document.getElementById('entryDescription').value.trim();
+
+    // Calculate duration in hours
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    const duration = (end - start) / (1000 * 60 * 60);
+
+    if (duration <= 0) {
+        alert('Die Endzeit muss nach der Startzeit liegen!');
+        return;
+    }
+
+    const entry = {
+        id: generateId(),
+        userId: currentUser.id,
+        clientId: clientId,
+        projectId: projectId,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        tags: tags,
+        description: description,
+        createdAt: new Date().toISOString()
+    };
+
+    appData.entries.push(entry);
+
+    // Add new tags to global tags list
+    tags.forEach(tag => {
+        if (!appData.tags.includes(tag)) {
+            appData.tags.push(tag);
+        }
+    });
+
+    saveData();
+
+    // Reset form
+    document.getElementById('timeEntryForm').reset();
+    document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+    resetTimer();
+
+    renderTodayEntries();
+    updateDashboardStats();
+    updateCharts();
+    populateFilterDropdowns();
+}
+
+function renderTodayEntries() {
+    const container = document.getElementById('todayEntries');
+    const today = new Date().toISOString().split('T')[0];
+
+    let entries = appData.entries.filter(e => e.date === today);
+
+    // If user is selected, filter by user
+    if (currentUser) {
+        entries = entries.filter(e => e.userId === currentUser.id);
+    }
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
+        return;
+    }
+
+    entries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    container.innerHTML = entries.map(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+        const user = appData.users.find(u => u.id === entry.userId);
+
+        return `
+            <div class="entry-card">
+                <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
+                <div class="entry-details">
+                    <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
+                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} ${user ? `• ${escapeHtml(user.name)}` : ''}</div>
+                    ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
+                    ${entry.tags.length > 0 ? `
+                        <div class="entry-tags">
+                            ${entry.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="entry-duration">${formatHours(entry.duration)}</div>
+                <div class="entry-actions">
+                    <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function editEntry(entryId) {
+    const entry = appData.entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    document.getElementById('editEntryId').value = entry.id;
+    document.getElementById('editEntryDate').value = entry.date;
+    document.getElementById('editEntryStartTime').value = entry.startTime;
+    document.getElementById('editEntryEndTime').value = entry.endTime;
+    document.getElementById('editEntryClient').value = entry.clientId;
+    loadProjectsForClientEdit(entry.clientId);
+    setTimeout(() => {
+        document.getElementById('editEntryProject').value = entry.projectId;
+    }, 100);
+    document.getElementById('editEntryTags').value = entry.tags.join(', ');
+    document.getElementById('editEntryDescription').value = entry.description;
+
+    openModal('editEntryModal');
+}
+
+function updateTimeEntry(event) {
+    event.preventDefault();
+
+    const entryId = document.getElementById('editEntryId').value;
+    const entry = appData.entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    const date = document.getElementById('editEntryDate').value;
+    const startTime = document.getElementById('editEntryStartTime').value;
+    const endTime = document.getElementById('editEntryEndTime').value;
+
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    const duration = (end - start) / (1000 * 60 * 60);
+
+    if (duration <= 0) {
+        alert('Die Endzeit muss nach der Startzeit liegen!');
+        return;
+    }
+
+    entry.date = date;
+    entry.startTime = startTime;
+    entry.endTime = endTime;
+    entry.duration = duration;
+    entry.clientId = document.getElementById('editEntryClient').value;
+    entry.projectId = document.getElementById('editEntryProject').value;
+    entry.tags = document.getElementById('editEntryTags').value
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
+    entry.description = document.getElementById('editEntryDescription').value.trim();
+
+    // Add new tags
+    entry.tags.forEach(tag => {
+        if (!appData.tags.includes(tag)) {
+            appData.tags.push(tag);
+        }
+    });
+
+    saveData();
+    closeModal('editEntryModal');
+
+    renderTodayEntries();
+    renderProjects();
+    updateDashboardStats();
+    updateCharts();
+}
+
+function deleteEntry(entryId) {
+    if (!confirm('Möchtest du diesen Eintrag wirklich löschen?')) {
+        return;
+    }
+
+    appData.entries = appData.entries.filter(e => e.id !== entryId);
+    saveData();
+
+    renderTodayEntries();
+    renderProjects();
+    updateDashboardStats();
+    updateCharts();
+}
+
+// ============================================
+// DASHBOARD STATS
+// ============================================
+
+function updateDashboardStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.substring(0, 7);
+
+    // Today's hours
+    let todayEntries = appData.entries.filter(e => e.date === today);
+    if (currentUser) {
+        todayEntries = todayEntries.filter(e => e.userId === currentUser.id);
+    }
+    const todayHours = todayEntries.reduce((sum, e) => sum + e.duration, 0);
+    document.getElementById('totalHoursToday').textContent = formatHours(todayHours);
+
+    // Month's hours
+    let monthEntries = appData.entries.filter(e => e.date.startsWith(currentMonth));
+    if (currentUser) {
+        monthEntries = monthEntries.filter(e => e.userId === currentUser.id);
+    }
+    const monthHours = monthEntries.reduce((sum, e) => sum + e.duration, 0);
+    document.getElementById('totalHoursMonth').textContent = formatHours(monthHours);
+
+    // Active projects
+    const activeProjects = appData.projects.filter(p => p.status === 'active').length;
+    document.getElementById('activeProjects').textContent = activeProjects;
+
+    // Total clients
+    document.getElementById('totalClients').textContent = appData.clients.length;
+}
+
+// ============================================
+// CHARTS & ANALYTICS
+// ============================================
+
+function initCharts() {
+    const chartConfig = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    };
+
+    // Client Chart (Doughnut)
+    charts.client = new Chart(document.getElementById('clientChart'), {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+        options: chartConfig
+    });
+
+    // Project Chart (Bar)
+    charts.project = new Chart(document.getElementById('projectChart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: '#9B59B6' }] },
+        options: {
+            ...chartConfig,
+            indexAxis: 'y',
+            plugins: {
+                ...chartConfig.plugins,
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Daily Chart (Bar)
+    charts.daily = new Chart(document.getElementById('dailyChart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: '#BB8FCE' }] },
+        options: {
+            ...chartConfig,
+            plugins: {
+                ...chartConfig.plugins,
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Monthly Chart (Line)
+    charts.monthly = new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: '#9B59B6',
+                backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            ...chartConfig,
+            plugins: {
+                ...chartConfig.plugins,
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Tag Chart (Pie)
+    charts.tag = new Chart(document.getElementById('tagChart'), {
+        type: 'pie',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+        options: chartConfig
+    });
+
+    // User Chart (Bar)
+    charts.user = new Chart(document.getElementById('userChart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+        options: {
+            ...chartConfig,
+            plugins: {
+                ...chartConfig.plugins,
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+function updateCharts() {
+    const filteredEntries = getFilteredEntries();
+
+    updateClientChart(filteredEntries);
+    updateProjectChart(filteredEntries);
+    updateDailyChart(filteredEntries);
+    updateMonthlyChart(filteredEntries);
+    updateTagChart(filteredEntries);
+    updateUserChart(filteredEntries);
+    updateDetailTable(filteredEntries);
+}
+
+function getFilteredEntries() {
+    let entries = [...appData.entries];
+
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    const clientId = document.getElementById('filterClient').value;
+    const projectId = document.getElementById('filterProject').value;
+    const tag = document.getElementById('filterTag').value;
+    const userId = document.getElementById('filterUser').value;
+
+    if (startDate) {
+        entries = entries.filter(e => e.date >= startDate);
+    }
+    if (endDate) {
+        entries = entries.filter(e => e.date <= endDate);
+    }
+    if (clientId) {
+        entries = entries.filter(e => e.clientId === clientId);
+    }
+    if (projectId) {
+        entries = entries.filter(e => e.projectId === projectId);
+    }
+    if (tag) {
+        entries = entries.filter(e => e.tags.includes(tag));
+    }
+    if (userId) {
+        entries = entries.filter(e => e.userId === userId);
+    }
+
+    return entries;
+}
+
+function updateClientChart(entries) {
+    const clientHours = {};
+
+    entries.forEach(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        if (project) {
+            const client = appData.clients.find(c => c.id === project.clientId);
+            const clientName = client ? client.name : 'Unbekannt';
+            clientHours[clientName] = (clientHours[clientName] || 0) + entry.duration;
+        }
+    });
+
+    const colors = generateColors(Object.keys(clientHours).length);
+
+    charts.client.data.labels = Object.keys(clientHours);
+    charts.client.data.datasets[0].data = Object.values(clientHours).map(h => Math.round(h * 100) / 100);
+    charts.client.data.datasets[0].backgroundColor = colors;
+    charts.client.update();
+}
+
+function updateProjectChart(entries) {
+    const projectHours = {};
+
+    entries.forEach(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const projectName = project ? project.name : 'Unbekannt';
+        projectHours[projectName] = (projectHours[projectName] || 0) + entry.duration;
+    });
+
+    // Sort by hours and take top 10
+    const sorted = Object.entries(projectHours)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+    charts.project.data.labels = sorted.map(s => s[0]);
+    charts.project.data.datasets[0].data = sorted.map(s => Math.round(s[1] * 100) / 100);
+    charts.project.update();
+}
+
+function updateDailyChart(entries) {
+    const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const dayHours = [0, 0, 0, 0, 0, 0, 0];
+
+    entries.forEach(entry => {
+        const dayIndex = new Date(entry.date).getDay();
+        dayHours[dayIndex] += entry.duration;
+    });
+
+    // Reorder to start with Monday
+    const reordered = [...dayHours.slice(1), dayHours[0]];
+    const reorderedLabels = [...dayNames.slice(1), dayNames[0]];
+
+    charts.daily.data.labels = reorderedLabels;
+    charts.daily.data.datasets[0].data = reordered.map(h => Math.round(h * 100) / 100);
+    charts.daily.update();
+}
+
+function updateMonthlyChart(entries) {
+    const monthHours = {};
+
+    entries.forEach(entry => {
+        const month = entry.date.substring(0, 7);
+        monthHours[month] = (monthHours[month] || 0) + entry.duration;
+    });
+
+    const sorted = Object.entries(monthHours).sort((a, b) => a[0].localeCompare(b[0]));
+
+    charts.monthly.data.labels = sorted.map(s => formatMonth(s[0]));
+    charts.monthly.data.datasets[0].data = sorted.map(s => Math.round(s[1] * 100) / 100);
+    charts.monthly.update();
+}
+
+function updateTagChart(entries) {
+    const tagHours = {};
+
+    entries.forEach(entry => {
+        entry.tags.forEach(tag => {
+            tagHours[tag] = (tagHours[tag] || 0) + entry.duration;
+        });
+    });
+
+    const colors = generateColors(Object.keys(tagHours).length);
+
+    charts.tag.data.labels = Object.keys(tagHours);
+    charts.tag.data.datasets[0].data = Object.values(tagHours).map(h => Math.round(h * 100) / 100);
+    charts.tag.data.datasets[0].backgroundColor = colors;
+    charts.tag.update();
+}
+
+function updateUserChart(entries) {
+    const userHours = {};
+
+    entries.forEach(entry => {
+        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = user ? user.name : 'Unbekannt';
+        userHours[userName] = (userHours[userName] || 0) + entry.duration;
+    });
+
+    const userColors = Object.keys(userHours).map(name => {
+        const user = appData.users.find(u => u.name === name);
+        return user ? user.color : '#9B59B6';
+    });
+
+    charts.user.data.labels = Object.keys(userHours);
+    charts.user.data.datasets[0].data = Object.values(userHours).map(h => Math.round(h * 100) / 100);
+    charts.user.data.datasets[0].backgroundColor = userColors;
+    charts.user.update();
+}
+
+function updateDetailTable(entries) {
+    const tbody = document.getElementById('detailTableBody');
+
+    if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Keine Einträge im ausgewählten Zeitraum</td></tr>';
+        return;
+    }
+
+    // Sort by date descending
+    entries.sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+
+    tbody.innerHTML = entries.map(entry => {
+        const user = appData.users.find(u => u.id === entry.userId);
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        return `
+            <tr>
+                <td>${formatDate(entry.date)}</td>
+                <td>${user ? escapeHtml(user.name) : '-'}</td>
+                <td>${client ? escapeHtml(client.name) : '-'}</td>
+                <td>${project ? escapeHtml(project.name) : '-'}</td>
+                <td>${escapeHtml(entry.description || '-')}</td>
+                <td>${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>${formatHours(entry.duration)}</td>
+                <td class="actions">
+                    <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function populateFilterDropdowns() {
+    // Tags dropdown
+    const tagSelect = document.getElementById('filterTag');
+    tagSelect.innerHTML = '<option value="">Alle Tags</option>' +
+        appData.tags.map(t => `<option value="${t}">${escapeHtml(t)}</option>`).join('');
+}
+
+function populateExportDropdowns() {
+    const clientOptions = '<option value="">Alle Kunden</option>' +
+        appData.clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+    const clientOptionsRequired = '<option value="">Kunde wählen...</option>' +
+        appData.clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+    document.getElementById('csvExportClient').innerHTML = clientOptions;
+    document.getElementById('pdfExportClient').innerHTML = clientOptions;
+    document.getElementById('customerPdfClient').innerHTML = clientOptionsRequired;
+
+    // Project dropdowns based on client selection
+    ['csvExportProject', 'pdfExportProject', 'customerPdfProject'].forEach(id => {
+        document.getElementById(id).innerHTML = '<option value="">Alle Projekte</option>';
+    });
+
+    // Add change listeners for customer PDF
+    document.getElementById('customerPdfClient').addEventListener('change', function() {
+        const clientId = this.value;
+        const projects = appData.projects.filter(p => p.clientId === clientId);
+        document.getElementById('customerPdfProject').innerHTML = '<option value="">Alle Projekte des Kunden</option>' +
+            projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    });
+}
+
+// ============================================
+// EXPORT FUNCTIONS
+// ============================================
+
+function exportCSV() {
+    const clientId = document.getElementById('csvExportClient').value;
+    const projectId = document.getElementById('csvExportProject').value;
+
+    let entries = [...appData.entries];
+
+    if (clientId) {
+        entries = entries.filter(e => e.clientId === clientId);
+    }
+    if (projectId) {
+        entries = entries.filter(e => e.projectId === projectId);
+    }
+
+    if (entries.length === 0) {
+        alert('Keine Einträge zum Exportieren gefunden!');
+        return;
+    }
+
+    // Sort by date
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Create CSV content
+    const headers = ['Datum', 'Benutzer', 'Kunde', 'Projekt', 'Startzeit', 'Endzeit', 'Dauer (Std)', 'Beschreibung', 'Tags'];
+    const rows = entries.map(entry => {
+        const user = appData.users.find(u => u.id === entry.userId);
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        return [
+            entry.date,
+            user ? user.name : '',
+            client ? client.name : '',
+            project ? project.name : '',
+            entry.startTime,
+            entry.endTime,
+            entry.duration.toFixed(2),
+            entry.description || '',
+            entry.tags.join('; ')
+        ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
+    });
+
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    // Download
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `LOTS_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+function exportPDF(type) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let clientId, projectId, month;
+    let entries = [...appData.entries];
+    let title = 'Zeiterfassung';
+    let subtitle = '';
+
+    if (type === 'customer') {
+        clientId = document.getElementById('customerPdfClient').value;
+        projectId = document.getElementById('customerPdfProject').value;
+        month = document.getElementById('customerPdfMonth').value;
+
+        if (!clientId) {
+            alert('Bitte wähle einen Kunden aus!');
+            return;
+        }
+
+        const client = appData.clients.find(c => c.id === clientId);
+        title = `Stundennachweis für ${client.name}`;
+
+        entries = entries.filter(e => e.clientId === clientId);
+
+        if (projectId) {
+            entries = entries.filter(e => e.projectId === projectId);
+            const project = appData.projects.find(p => p.id === projectId);
+            subtitle = `Projekt: ${project.name}`;
+        }
+
+        if (month) {
+            entries = entries.filter(e => e.date.startsWith(month));
+            subtitle += (subtitle ? ' | ' : '') + `Zeitraum: ${formatMonth(month)}`;
+        }
+    } else {
+        clientId = document.getElementById('pdfExportClient').value;
+        projectId = document.getElementById('pdfExportProject').value;
+
+        if (clientId) {
+            const client = appData.clients.find(c => c.id === clientId);
+            entries = entries.filter(e => e.clientId === clientId);
+            subtitle = `Kunde: ${client.name}`;
+        }
+
+        if (projectId) {
+            entries = entries.filter(e => e.projectId === projectId);
+            const project = appData.projects.find(p => p.id === projectId);
+            subtitle += (subtitle ? ' | ' : '') + `Projekt: ${project.name}`;
+        }
+    }
+
+    if (entries.length === 0) {
+        alert('Keine Einträge zum Exportieren gefunden!');
+        return;
+    }
+
+    // Sort entries
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+
+    // PDF Header
+    doc.setFontSize(20);
+    doc.setTextColor(155, 89, 182); // Primary color
+    doc.text('LOTS', 20, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(127, 140, 141);
+    doc.text('LexOffice Time Scheduling', 20, 27);
+
+    doc.setFontSize(16);
+    doc.setTextColor(44, 62, 80);
+    doc.text(title, 20, 45);
+
+    if (subtitle) {
+        doc.setFontSize(11);
+        doc.setTextColor(127, 140, 141);
+        doc.text(subtitle, 20, 53);
+    }
+
+    // Summary
+    const totalHours = entries.reduce((sum, e) => sum + e.duration, 0);
+    const client = clientId ? appData.clients.find(c => c.id === clientId) : null;
+    const totalCost = client && client.hourlyRate ? totalHours * client.hourlyRate : 0;
+
+    doc.setFontSize(12);
+    doc.setTextColor(44, 62, 80);
+    let yPos = subtitle ? 65 : 55;
+
+    doc.text(`Gesamtstunden: ${formatHours(totalHours)}`, 20, yPos);
+    if (totalCost > 0) {
+        doc.text(`Gesamtbetrag: ${totalCost.toFixed(2)} €`, 20, yPos + 7);
+        yPos += 7;
+    }
+
+    yPos += 15;
+
+    // Detail table
+    const includeDetails = type === 'customer' ? document.getElementById('includeDetails').checked : true;
+
+    if (includeDetails) {
+        const tableData = entries.map(entry => {
+            const user = appData.users.find(u => u.id === entry.userId);
+            const project = appData.projects.find(p => p.id === entry.projectId);
+
+            if (type === 'customer') {
+                return [
+                    formatDate(entry.date),
+                    project ? project.name : '-',
+                    entry.description || '-',
+                    formatHours(entry.duration)
+                ];
+            } else {
+                return [
+                    formatDate(entry.date),
+                    user ? user.name : '-',
+                    project ? project.name : '-',
+                    entry.description || '-',
+                    formatHours(entry.duration)
+                ];
+            }
+        });
+
+        const headers = type === 'customer'
+            ? ['Datum', 'Projekt', 'Beschreibung', 'Dauer']
+            : ['Datum', 'Benutzer', 'Projekt', 'Beschreibung', 'Dauer'];
+
+        doc.autoTable({
+            startY: yPos,
+            head: [headers],
+            body: tableData,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [155, 89, 182],
+                textColor: 255
+            },
+            styles: {
+                fontSize: 9
+            },
+            columnStyles: type === 'customer' ? {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 'auto' },
+                3: { cellWidth: 20, halign: 'right' }
+            } : {
+                0: { cellWidth: 22 },
+                1: { cellWidth: 25 },
+                2: { cellWidth: 35 },
+                3: { cellWidth: 'auto' },
+                4: { cellWidth: 18, halign: 'right' }
+            }
+        });
+    }
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(127, 140, 141);
+        doc.text(
+            `Erstellt am ${new Date().toLocaleDateString('de-DE')} mit LOTS | Seite ${i} von ${pageCount}`,
+            doc.internal.pageSize.width / 2,
+            doc.internal.pageSize.height - 10,
+            { align: 'center' }
+        );
+    }
+
+    // Download
+    const filename = type === 'customer'
+        ? `Stundennachweis_${client.name.replace(/\s+/g, '_')}_${month || new Date().toISOString().split('T')[0]}.pdf`
+        : `LOTS_Bericht_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    doc.save(filename);
+}
+
+// ============================================
+// MODAL FUNCTIONS
+// ============================================
+
+function openModal(modalId) {
+    document.getElementById(modalId).classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Close modal on outside click
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+});
+
+// Close modal on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal.active').forEach(modal => {
+            modal.classList.remove('active');
+        });
+        document.body.style.overflow = '';
+    }
+});
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatHours(hours) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatMonth(monthStr) {
+    const [year, month] = monthStr.split('-');
+    const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                       'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
+}
+
+function formatTimeForInput(date) {
+    return date.toTimeString().substring(0, 5);
+}
+
+function generateColors(count) {
+    const baseColors = [
+        '#9B59B6', '#8E44AD', '#BB8FCE', '#E8DAEF',
+        '#3498DB', '#2980B9', '#5DADE2', '#AED6F1',
+        '#27AE60', '#229954', '#58D68D', '#ABEBC6',
+        '#E74C3C', '#C0392B', '#EC7063', '#F5B7B1',
+        '#F39C12', '#D68910', '#F7DC6F', '#F9E79F'
+    ];
+
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        colors.push(baseColors[i % baseColors.length]);
+    }
+    return colors;
+}

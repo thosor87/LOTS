@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOTS | LexOffice Time Scheduling</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo" onclick="scrollToTop()">
+                <span class="logo-icon">◆</span>
+                <span class="logo-text">LOTS</span>
+            </div>
+            <nav class="nav">
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#zeiterfassung" class="nav-link">Zeiterfassung</a>
+                <a href="#kunden" class="nav-link">Kunden</a>
+                <a href="#projekte" class="nav-link">Projekte</a>
+                <a href="#auswertung" class="nav-link">Auswertung</a>
+                <a href="#export" class="nav-link">Export</a>
+            </nav>
+            <div class="user-menu">
+                <select id="currentUser" class="user-select" onchange="switchUser(this.value)">
+                    <option value="">Benutzer wählen...</option>
+                </select>
+                <button class="btn btn-small btn-secondary" onclick="openModal('userModal')">+ Benutzer</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero Section -->
+        <section class="hero" id="dashboard">
+            <div class="hero-content">
+                <h1>Willkommen bei <span class="accent">LOTS</span> ✦</h1>
+                <p class="hero-subtitle">LexOffice Time Scheduling – Professionelle Zeiterfassung für Teams</p>
+                <div class="hero-stats">
+                    <div class="stat-card">
+                        <span class="stat-icon">◉</span>
+                        <span class="stat-value" id="totalHoursToday">0h</span>
+                        <span class="stat-label">Heute erfasst</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">◆</span>
+                        <span class="stat-value" id="totalHoursMonth">0h</span>
+                        <span class="stat-label">Diesen Monat</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">✦</span>
+                        <span class="stat-value" id="activeProjects">0</span>
+                        <span class="stat-label">Aktive Projekte</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">+</span>
+                        <span class="stat-value" id="totalClients">0</span>
+                        <span class="stat-label">Kunden</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Zeiterfassung Section -->
+        <section class="section" id="zeiterfassung">
+            <div class="section-header">
+                <h2>Zeiterfassung <span class="accent">+</span></h2>
+                <p>Erfasse deine Arbeitszeiten schnell und einfach</p>
+            </div>
+
+            <!-- Timer -->
+            <div class="timer-container">
+                <div class="timer-display">
+                    <span id="timerDisplay">00:00:00</span>
+                </div>
+                <div class="timer-controls">
+                    <button class="btn btn-primary btn-large" id="startStopBtn" onclick="toggleTimer()">
+                        <span id="timerBtnText">▶ Start</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetTimer()">↺ Reset</button>
+                </div>
+            </div>
+
+            <!-- Manuelle Eingabe -->
+            <div class="time-entry-form">
+                <h3>Zeiteintrag erstellen</h3>
+                <form id="timeEntryForm" onsubmit="saveTimeEntry(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="entryDate">Datum</label>
+                            <input type="date" id="entryDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryStartTime">Startzeit</label>
+                            <input type="time" id="entryStartTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryEndTime">Endzeit</label>
+                            <input type="time" id="entryEndTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryClient">Kunde</label>
+                            <select id="entryClient" required onchange="loadProjectsForClient(this.value)">
+                                <option value="">Kunde wählen...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryProject">Projekt</label>
+                            <select id="entryProject" required>
+                                <option value="">Projekt wählen...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryTags">Tags (Stichworte)</label>
+                            <input type="text" id="entryTags" placeholder="z.B. meeting, design, review">
+                            <small>Kommagetrennte Stichworte</small>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="entryDescription">Beschreibung</label>
+                            <textarea id="entryDescription" rows="2" placeholder="Was hast du gemacht?"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">+ Eintrag speichern</button>
+                </form>
+            </div>
+
+            <!-- Aktuelle Einträge -->
+            <div class="entries-list">
+                <h3>Heutige Einträge</h3>
+                <div id="todayEntries" class="entries-container">
+                    <p class="empty-state">Noch keine Einträge für heute ✦</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kunden Section -->
+        <section class="section" id="kunden">
+            <div class="section-header">
+                <h2>Kundenverwaltung <span class="accent">◆</span></h2>
+                <p>Verwalte deine Kunden und deren Kontaktdaten</p>
+            </div>
+
+            <button class="btn btn-primary" onclick="openModal('clientModal')">+ Neuer Kunde</button>
+
+            <div class="cards-grid" id="clientsList">
+                <p class="empty-state">Noch keine Kunden angelegt ◉</p>
+            </div>
+        </section>
+
+        <!-- Projekte Section -->
+        <section class="section" id="projekte">
+            <div class="section-header">
+                <h2>Projektverwaltung <span class="accent">✦</span></h2>
+                <p>Organisiere deine Projekte nach Kunden</p>
+            </div>
+
+            <button class="btn btn-primary" onclick="openModal('projectModal')">+ Neues Projekt</button>
+
+            <div class="cards-grid" id="projectsList">
+                <p class="empty-state">Noch keine Projekte angelegt ✦</p>
+            </div>
+        </section>
+
+        <!-- Auswertung Section -->
+        <section class="section" id="auswertung">
+            <div class="section-header">
+                <h2>Auswertungen <span class="accent">◉</span></h2>
+                <p>Analysiere deine Arbeitszeiten mit interaktiven Grafiken</p>
+            </div>
+
+            <!-- Filter -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Zeitraum:</label>
+                    <input type="date" id="filterStartDate" onchange="updateCharts()">
+                    <span>bis</span>
+                    <input type="date" id="filterEndDate" onchange="updateCharts()">
+                </div>
+                <div class="filter-group">
+                    <label>Kunde:</label>
+                    <select id="filterClient" onchange="updateCharts()">
+                        <option value="">Alle Kunden</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Projekt:</label>
+                    <select id="filterProject" onchange="updateCharts()">
+                        <option value="">Alle Projekte</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Tag:</label>
+                    <select id="filterTag" onchange="updateCharts()">
+                        <option value="">Alle Tags</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Benutzer:</label>
+                    <select id="filterUser" onchange="updateCharts()">
+                        <option value="">Alle Benutzer</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Stunden pro Kunde</h3>
+                    <canvas id="clientChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Stunden pro Projekt</h3>
+                    <canvas id="projectChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Stunden pro Tag (Wochenübersicht)</h3>
+                    <canvas id="dailyChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Monatlicher Verlauf</h3>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Verteilung nach Tags</h3>
+                    <canvas id="tagChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Stunden pro Benutzer</h3>
+                    <canvas id="userChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailtabelle -->
+            <div class="detail-table-container">
+                <h3>Detaillierte Auflistung</h3>
+                <table class="detail-table" id="detailTable">
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Benutzer</th>
+                            <th>Kunde</th>
+                            <th>Projekt</th>
+                            <th>Beschreibung</th>
+                            <th>Tags</th>
+                            <th>Dauer</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Export Section -->
+        <section class="section" id="export">
+            <div class="section-header">
+                <h2>Export <span class="accent">+</span></h2>
+                <p>Exportiere deine Zeitdaten als CSV oder PDF</p>
+            </div>
+
+            <div class="export-options">
+                <div class="export-card">
+                    <div class="export-icon">📊</div>
+                    <h3>CSV Export</h3>
+                    <p>Für Excel, Google Sheets oder andere Tabellenkalkulationen</p>
+                    <div class="export-filters">
+                        <select id="csvExportClient">
+                            <option value="">Alle Kunden</option>
+                        </select>
+                        <select id="csvExportProject">
+                            <option value="">Alle Projekte</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="exportCSV()">↓ CSV herunterladen</button>
+                </div>
+
+                <div class="export-card">
+                    <div class="export-icon">📄</div>
+                    <h3>PDF Bericht</h3>
+                    <p>Professioneller Bericht für interne Zwecke</p>
+                    <div class="export-filters">
+                        <select id="pdfExportClient">
+                            <option value="">Alle Kunden</option>
+                        </select>
+                        <select id="pdfExportProject">
+                            <option value="">Alle Projekte</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="exportPDF('internal')">↓ PDF herunterladen</button>
+                </div>
+
+                <div class="export-card highlight">
+                    <div class="export-icon">📨</div>
+                    <h3>Kunden-PDF</h3>
+                    <p>Aufbereiteter Bericht zum Versenden an Kunden</p>
+                    <div class="export-filters">
+                        <select id="customerPdfClient" required>
+                            <option value="">Kunde wählen...</option>
+                        </select>
+                        <select id="customerPdfProject">
+                            <option value="">Alle Projekte des Kunden</option>
+                        </select>
+                        <input type="month" id="customerPdfMonth">
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="includeDetails" checked>
+                        Detaillierte Auflistung einschließen
+                    </label>
+                    <button class="btn btn-accent" onclick="exportPDF('customer')">↓ Kunden-PDF erstellen</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo-icon">◆</span> LOTS
+            </div>
+            <p>Self-Made with 🤍 and AI</p>
+            <p class="footer-note">Daten werden lokal im Browser gespeichert (LocalStorage)</p>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <!-- Client Modal -->
+    <div class="modal" id="clientModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Neuer Kunde</h3>
+                <button class="modal-close" onclick="closeModal('clientModal')">×</button>
+            </div>
+            <form id="clientForm" onsubmit="saveClient(event)">
+                <div class="form-group">
+                    <label for="clientName">Firmenname *</label>
+                    <input type="text" id="clientName" required>
+                </div>
+                <div class="form-group">
+                    <label for="clientContact">Ansprechpartner</label>
+                    <input type="text" id="clientContact">
+                </div>
+                <div class="form-group">
+                    <label for="clientEmail">E-Mail</label>
+                    <input type="email" id="clientEmail">
+                </div>
+                <div class="form-group">
+                    <label for="clientPhone">Telefon</label>
+                    <input type="tel" id="clientPhone">
+                </div>
+                <div class="form-group">
+                    <label for="clientAddress">Adresse</label>
+                    <textarea id="clientAddress" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="clientHourlyRate">Stundensatz (€)</label>
+                    <input type="number" id="clientHourlyRate" step="0.01" min="0">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('clientModal')">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Project Modal -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Neues Projekt</h3>
+                <button class="modal-close" onclick="closeModal('projectModal')">×</button>
+            </div>
+            <form id="projectForm" onsubmit="saveProject(event)">
+                <div class="form-group">
+                    <label for="projectClient">Kunde *</label>
+                    <select id="projectClient" required>
+                        <option value="">Kunde wählen...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="projectName">Projektname *</label>
+                    <input type="text" id="projectName" required>
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Beschreibung</label>
+                    <textarea id="projectDescription" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="projectBudgetHours">Budget (Stunden)</label>
+                    <input type="number" id="projectBudgetHours" min="0" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="projectDeadline">Deadline</label>
+                    <input type="date" id="projectDeadline">
+                </div>
+                <div class="form-group">
+                    <label for="projectStatus">Status</label>
+                    <select id="projectStatus">
+                        <option value="active">Aktiv</option>
+                        <option value="paused">Pausiert</option>
+                        <option value="completed">Abgeschlossen</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('projectModal')">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Neuer Benutzer</h3>
+                <button class="modal-close" onclick="closeModal('userModal')">×</button>
+            </div>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <div class="form-group">
+                    <label for="userName">Name *</label>
+                    <input type="text" id="userName" required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">E-Mail</label>
+                    <input type="email" id="userEmail">
+                </div>
+                <div class="form-group">
+                    <label for="userColor">Farbe (für Charts)</label>
+                    <input type="color" id="userColor" value="#9B59B6">
+                </div>
+                <p class="form-note">Maximal 5 Benutzer möglich</p>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Entry Modal -->
+    <div class="modal" id="editEntryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Eintrag bearbeiten</h3>
+                <button class="modal-close" onclick="closeModal('editEntryModal')">×</button>
+            </div>
+            <form id="editEntryForm" onsubmit="updateTimeEntry(event)">
+                <input type="hidden" id="editEntryId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editEntryDate">Datum</label>
+                        <input type="date" id="editEntryDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryStartTime">Startzeit</label>
+                        <input type="time" id="editEntryStartTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryEndTime">Endzeit</label>
+                        <input type="time" id="editEntryEndTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryClient">Kunde</label>
+                        <select id="editEntryClient" required onchange="loadProjectsForClientEdit(this.value)">
+                            <option value="">Kunde wählen...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryProject">Projekt</label>
+                        <select id="editEntryProject" required>
+                            <option value="">Projekt wählen...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEntryTags">Tags</label>
+                        <input type="text" id="editEntryTags" placeholder="z.B. meeting, design">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editEntryDescription">Beschreibung</label>
+                        <textarea id="editEntryDescription" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editEntryModal')">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Aktualisieren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
