@@ -635,6 +635,20 @@ function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function filterByTag(tag) {
+    // Set the tag filter
+    document.getElementById('filterTag').value = tag;
+
+    // Update charts with filtered data
+    updateCharts();
+
+    // Scroll to analytics section
+    const analyticsSection = document.getElementById('auswertung');
+    if (analyticsSection) {
+        analyticsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
 // ============================================
 // USER MANAGEMENT
 // ============================================
@@ -1187,7 +1201,7 @@ function renderTodayEntries() {
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
                     ${normalizeTags(entry.tags).length > 0 ? `
                         <div class="entry-tags">
-                            ${normalizeTags(entry.tags).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            ${normalizeTags(entry.tags).map(tag => `<span class="tag" onclick="filterByTag('${escapeHtml(tag)}')" style="cursor: pointer;">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -1628,7 +1642,7 @@ function updateDetailTable(entries) {
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
-                <td>${normalizeTags(entry.tags).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>${normalizeTags(entry.tags).map(t => `<span class="tag" onclick="filterByTag('${escapeHtml(t)}')" style="cursor: pointer;">${escapeHtml(t)}</span>`).join(' ')}</td>
                 <td>${formatHours(entry.duration)}</td>
                 <td class="actions">
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
