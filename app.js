@@ -366,12 +366,19 @@ async function loadFirestoreData() {
         const tagsSet = new Set();
         appData.entries.forEach(entry => {
             if (entry.tags) {
-                entry.tags.split(',').forEach(tag => tagsSet.add(tag.trim()));
+                const tags = typeof entry.tags === 'string'
+                    ? entry.tags.split(',')
+                    : entry.tags;
+                tags.forEach(tag => {
+                    const trimmed = typeof tag === 'string' ? tag.trim() : tag;
+                    if (trimmed) tagsSet.add(trimmed);
+                });
             }
         });
         appData.tags = Array.from(tagsSet);
 
         console.log('Data loaded from Firestore:', appData);
+        console.log('Clients:', appData.clients.length, 'Projects:', appData.projects.length, 'Entries:', appData.entries.length);
 
     } catch (error) {
         console.error('Load Firestore data error:', error);
@@ -517,6 +524,61 @@ function setDefaultDates() {
     const monthInput = document.getElementById('customerPdfMonth');
     if (monthInput) {
         monthInput.value = today.substring(0, 7);
+    }
+
+    // Setup time input auto-formatting
+    setupTimeInputFormatting();
+}
+
+// Auto-format time inputs (12 → 12:00, 1245 → 12:45)
+function setupTimeInputFormatting() {
+    const timeInputs = [
+        'entryStartTime',
+        'entryEndTime',
+        'editEntryStartTime',
+        'editEntryEndTime'
+    ];
+
+    timeInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('blur', function() {
+                formatTimeInput(this);
+            });
+        }
+    });
+}
+
+function formatTimeInput(input) {
+    let value = input.value.replace(/[^0-9]/g, ''); // Remove non-digits
+
+    if (!value) return;
+
+    // Handle different input formats
+    if (value.length === 1 || value.length === 2) {
+        // "1" or "12" → "12:00"
+        value = value.padStart(2, '0') + ':00';
+    } else if (value.length === 3) {
+        // "123" → "01:23"
+        value = '0' + value[0] + ':' + value.substring(1);
+    } else if (value.length === 4) {
+        // "1245" → "12:45"
+        value = value.substring(0, 2) + ':' + value.substring(2);
+    } else if (value.length > 4) {
+        // Truncate to 4 digits
+        value = value.substring(0, 2) + ':' + value.substring(2, 4);
+    }
+
+    // Validate time
+    const parts = value.split(':');
+    const hours = parseInt(parts[0]);
+    const minutes = parseInt(parts[1]);
+
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        input.value = value;
+    } else {
+        input.value = ''; // Invalid time, clear it
+        alert('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59');
     }
 }
 
