@@ -50,7 +50,7 @@ let appData = {
     tags: []
 };
 
-let currentUser = null;
+let currentUser = null; // Deprecated: Now using currentFirebaseUser
 let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
@@ -930,8 +930,8 @@ function toggleTimer() {
 }
 
 function startTimer() {
-    if (!currentUser) {
-        alert('Bitte wähle zuerst einen Benutzer aus!');
+    if (!currentFirebaseUser) {
+        alert('Bitte melde dich an!');
         return;
     }
 
@@ -1065,10 +1065,7 @@ function renderTodayEntries() {
 
     let entries = appData.entries.filter(e => e.date === today);
 
-    // If user is selected, filter by user
-    if (currentUser) {
-        entries = entries.filter(e => e.userId === currentUser.id);
-    }
+    // Show all entries from organization (no user filter needed)
 
     if (entries.length === 0) {
         container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
@@ -1221,17 +1218,11 @@ function updateDashboardStats() {
 
     // Today's hours
     let todayEntries = appData.entries.filter(e => e.date === today);
-    if (currentUser) {
-        todayEntries = todayEntries.filter(e => e.userId === currentUser.id);
-    }
     const todayHours = todayEntries.reduce((sum, e) => sum + e.duration, 0);
     document.getElementById('totalHoursToday').textContent = formatHours(todayHours);
 
     // Month's hours
     let monthEntries = appData.entries.filter(e => e.date.startsWith(currentMonth));
-    if (currentUser) {
-        monthEntries = monthEntries.filter(e => e.userId === currentUser.id);
-    }
     const monthHours = monthEntries.reduce((sum, e) => sum + e.duration, 0);
     document.getElementById('totalHoursMonth').textContent = formatHours(monthHours);
 
