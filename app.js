@@ -1515,9 +1515,14 @@ function updateTagChart(entries) {
 
     entries.forEach(entry => {
         const tags = normalizeTags(entry.tags);
-        tags.forEach(tag => {
-            tagHours[tag] = (tagHours[tag] || 0) + entry.duration;
-        });
+        if (tags.length === 0) {
+            // Count entries without tags
+            tagHours['ohne Tags'] = (tagHours['ohne Tags'] || 0) + entry.duration;
+        } else {
+            tags.forEach(tag => {
+                tagHours[tag] = (tagHours[tag] || 0) + entry.duration;
+            });
+        }
     });
 
     const colors = generateColors(Object.keys(tagHours).length);
