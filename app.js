@@ -2130,31 +2130,71 @@ function exportPDF(type) {
     const includeDetails = type === 'customer' ? document.getElementById('includeDetails').checked : true;
 
     if (includeDetails) {
-        const tableData = entries.map(entry => {
-            const userName = entry.userName || 'Unbekannt';
-            const project = appData.projects.find(p => p.id === entry.projectId);
-
-            if (type === 'customer') {
-                return [
-                    formatDate(entry.date),
-                    project ? project.name : '-',
-                    entry.description || '-',
-                    formatHours(entry.duration)
-                ];
-            } else {
-                return [
-                    formatDate(entry.date),
-                    userName,
-                    project ? project.name : '-',
-                    entry.description || '-',
-                    formatHours(entry.duration)
-                ];
+        // Group entries by project
+        const projectGroups = {};
+        entries.forEach(entry => {
+            const projectId = entry.projectId || 'unknown';
+            if (!projectGroups[projectId]) {
+                projectGroups[projectId] = [];
             }
+            projectGroups[projectId].push(entry);
+        });
+
+        // Build table data with project grouping
+        const tableData = [];
+        Object.keys(projectGroups).forEach(projectId => {
+            const projectEntries = projectGroups[projectId];
+            const project = appData.projects.find(p => p.id === projectId);
+            const projectClient = project ? appData.clients.find(c => c.id === project.clientId) : null;
+            const hourlyRate = (project && project.hourlyRate !== null && project.hourlyRate !== undefined)
+                ? project.hourlyRate
+                : (projectClient ? projectClient.hourlyRate || 0 : 0);
+
+            // Project header row
+            tableData.push([{
+                content: project ? project.name : 'Unbekanntes Projekt',
+                colSpan: type === 'customer' ? 5 : 6,
+                styles: { fillColor: [236, 218, 239], fontStyle: 'bold', textColor: [44, 62, 80] }
+            }]);
+
+            // Project entries
+            projectEntries.forEach(entry => {
+                const userName = entry.userName || 'Unbekannt';
+                const cost = entry.duration * hourlyRate;
+
+                if (type === 'customer') {
+                    tableData.push([
+                        formatDate(entry.date),
+                        entry.description || '-',
+                        formatHours(entry.duration),
+                        hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                        cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                    ]);
+                } else {
+                    tableData.push([
+                        formatDate(entry.date),
+                        userName,
+                        entry.description || '-',
+                        formatHours(entry.duration),
+                        hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                        cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                    ]);
+                }
+            });
+
+            // Project subtotal row
+            const projectTotal = projectEntries.reduce((sum, e) => sum + e.duration, 0);
+            const projectCost = projectTotal * hourlyRate;
+            tableData.push([{
+                content: 'Zwischensumme: ' + formatHours(projectTotal) + (projectCost > 0 ? ' = ' + projectCost.toFixed(2) + ' €' : ''),
+                colSpan: type === 'customer' ? 5 : 6,
+                styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'right' }
+            }]);
         });
 
         const headers = type === 'customer'
-            ? ['Datum', 'Projekt', 'Beschreibung', 'Dauer']
-            : ['Datum', 'Benutzer', 'Projekt', 'Beschreibung', 'Dauer'];
+            ? ['Datum', 'Beschreibung', 'Dauer', '€/Std.', 'Summe']
+            : ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'];
 
         doc.autoTable({
             startY: yPos,
@@ -2170,15 +2210,17 @@ function exportPDF(type) {
             },
             columnStyles: type === 'customer' ? {
                 0: { cellWidth: 25 },
-                1: { cellWidth: 40 },
-                2: { cellWidth: 'auto' },
-                3: { cellWidth: 20, halign: 'right' }
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 20, halign: 'right' },
+                3: { cellWidth: 20, halign: 'right' },
+                4: { cellWidth: 25, halign: 'right' }
             } : {
                 0: { cellWidth: 22 },
                 1: { cellWidth: 25 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 'auto' },
-                4: { cellWidth: 18, halign: 'right' }
+                2: { cellWidth: 'auto' },
+                3: { cellWidth: 18, halign: 'right' },
+                4: { cellWidth: 20, halign: 'right' },
+                5: { cellWidth: 25, halign: 'right' }
             }
         });
     }
