@@ -1691,51 +1691,23 @@ async function updateTimeEntry(event) {
     if (!entry) return;
 
     const date = document.getElementById('editEntryDate').value;
-    let startTime = document.getElementById('editEntryStartTime').value;
-    let endTime = document.getElementById('editEntryEndTime').value;
-    const durationInput = document.getElementById('editEntryDuration').value;
+    const startTime = document.getElementById('editEntryStartTime').value;
+    const endTime = document.getElementById('editEntryEndTime').value;
 
-    // Validate that at least 2 of 3 fields are filled (start, end, duration)
-    const fieldsCount = [startTime, endTime, durationInput].filter(f => f).length;
-    if (fieldsCount < 2) {
-        showNotification('Bitte mindestens zwei Felder ausfüllen: Startzeit, Endzeit oder Dauer', 'warning');
+    // Validate that both start and end time are filled
+    if (!startTime || !endTime) {
+        showNotification('Bitte sowohl Startzeit als auch Endzeit ausfüllen', 'warning');
         return;
     }
 
-    // Calculate missing field
-    let duration;
-    if (startTime && endTime) {
-        // Calculate duration from times
-        const start = new Date(`${date}T${startTime}`);
-        const end = new Date(`${date}T${endTime}`);
-        duration = (end - start) / (1000 * 60 * 60);
+    // Calculate duration from times
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    let duration = (end - start) / (1000 * 60 * 60);
 
-        if (duration <= 0) {
-            showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
-            return;
-        }
-    } else if (durationInput) {
-        duration = parseFloat(durationInput);
-
-        if (startTime && !endTime) {
-            // Calculate end time from start + duration
-            const [hours, minutes] = startTime.split(':').map(Number);
-            const durationMinutes = Math.round(duration * 60);
-            let totalMinutes = hours * 60 + minutes + durationMinutes;
-            if (totalMinutes >= 24 * 60) totalMinutes = totalMinutes % (24 * 60);
-            const endHours = Math.floor(totalMinutes / 60);
-            const endMinutes = totalMinutes % 60;
-            endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
-        } else if (endTime && !startTime) {
-            // Calculate start time from end - duration
-            const [hours, minutes] = endTime.split(':').map(Number);
-            const durationMinutes = Math.round(duration * 60);
-            let totalMinutes = hours * 60 + minutes - durationMinutes;
-            if (totalMinutes < 0) totalMinutes = (24 * 60) + totalMinutes;
-            const startHours = Math.floor(totalMinutes / 60);
-            const startMinutes = totalMinutes % 60;
-            startTime = `${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}`;
-        }
+    if (duration <= 0) {
+        showNotification('Die Endzeit muss nach der Startzeit liegen!', 'warning');
+        return;
     }
 
     const tagsInput = document.getElementById('editEntryTags').value;
