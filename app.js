@@ -199,16 +199,12 @@ async function handleAuthStateChange(user) {
 function showAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appContent').style.display = 'none';
-    const statsBar = document.getElementById('statsBar');
-    if (statsBar) statsBar.style.display = 'none';
 }
 
 function showApp() {
     console.log('showApp() called');
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
-    const statsBar = document.getElementById('statsBar');
-    if (statsBar) statsBar.style.display = 'block';
 
     // Update user info in header
     document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
@@ -1871,29 +1867,11 @@ async function deleteEntry(entryId) {
 }
 
 // ============================================
-// DASHBOARD STATS
+// DASHBOARD STATS (removed - kept for compatibility)
 // ============================================
 
 function updateDashboardStats() {
-    const today = new Date().toISOString().split('T')[0];
-    const currentMonth = today.substring(0, 7);
-
-    // Today's hours
-    let todayEntries = appData.entries.filter(e => e.date === today);
-    const todayHours = todayEntries.reduce((sum, e) => sum + e.duration, 0);
-    document.getElementById('totalHoursToday').textContent = formatHours(todayHours);
-
-    // Month's hours
-    let monthEntries = appData.entries.filter(e => e.date.startsWith(currentMonth));
-    const monthHours = monthEntries.reduce((sum, e) => sum + e.duration, 0);
-    document.getElementById('totalHoursMonth').textContent = formatHours(monthHours);
-
-    // Active projects
-    const activeProjects = appData.projects.filter(p => p.status === 'active').length;
-    document.getElementById('activeProjects').textContent = activeProjects;
-
-    // Total clients
-    document.getElementById('totalClients').textContent = appData.clients.length;
+    // Dashboard stats bar removed - function kept to prevent errors
 }
 
 // ============================================
