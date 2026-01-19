@@ -910,6 +910,29 @@ a:hover {
     text-decoration: underline;
 }
 
+.lilapixel-link {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
+.lilapixel-link:hover {
+    text-decoration: none !important;
+}
+
+.lilapixel-logo {
+    height: 32px;
+    width: auto;
+    margin-left: 8px;
+    vertical-align: middle;
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.lilapixel-link:hover .lilapixel-logo {
+    transform: translateY(-2px);
+    opacity: 0.9;
+}
+
 .footer-note {
     font-size: 0.85rem;
     color: var(--gray);
