@@ -130,42 +130,6 @@ async function signInWithGoogle() {
     }
 }
 
-// Email/Password Auth
-async function handleEmailAuth(event) {
-    event.preventDefault();
-    const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
-    const isRegister = event.submitter?.dataset?.action === 'register';
-
-    try {
-        if (isRegister) {
-            await auth.createUserWithEmailAndPassword(email, password);
-        } else {
-            await auth.signInWithEmailAndPassword(email, password);
-        }
-    } catch (error) {
-        console.error('Auth error:', error);
-        if (error.code === 'auth/user-not-found') {
-            alert('Benutzer nicht gefunden. Möchtest du dich registrieren?');
-        } else {
-            alert('Fehler: ' + error.message);
-        }
-    }
-}
-
-function switchToRegister() {
-    const submitBtn = document.querySelector('#loginForm button[type="submit"]');
-    if (submitBtn.dataset.action === 'login') {
-        submitBtn.dataset.action = 'register';
-        submitBtn.textContent = 'Registrieren';
-        document.querySelector('#loginForm h3').textContent = 'Registrieren';
-    } else {
-        submitBtn.dataset.action = 'login';
-        submitBtn.textContent = 'Anmelden';
-        document.querySelector('#loginForm h3').textContent = 'Anmelden oder Registrieren';
-    }
-}
-
 // Sign Out
 async function signOut() {
     try {
@@ -215,8 +179,9 @@ async function createOrganization() {
         // Load organization
         await loadOrganization(orgRef.id);
 
-        // Check for local data to migrate
-        checkForLocalDataMigration();
+        // Load Firestore data and show app
+        await loadFirestoreData();
+        showApp();
 
     } catch (error) {
         console.error('Create organization error:', error);
@@ -342,22 +307,29 @@ function copyInviteCode() {
 // ============================================
 
 async function loadFirestoreData() {
-    if (!currentOrganization) return;
+    if (!currentOrganization) {
+        console.warn('loadFirestoreData: No organization set');
+        return;
+    }
 
     try {
+        console.log('Loading data for organization:', currentOrganization.id);
         const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
         // Load clients
         const clientsSnapshot = await orgRef.collection('clients').get();
         appData.clients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded clients:', appData.clients.length);
 
         // Load projects
         const projectsSnapshot = await orgRef.collection('projects').get();
         appData.projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded projects:', appData.projects.length);
 
         // Load time entries
         const entriesSnapshot = await orgRef.collection('timeEntries').get();
         appData.entries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded entries:', appData.entries.length);
 
         // Load users (deprecated - keeping for compatibility)
         appData.users = [];
@@ -377,105 +349,11 @@ async function loadFirestoreData() {
         });
         appData.tags = Array.from(tagsSet);
 
-        console.log('Data loaded from Firestore:', appData);
-        console.log('Clients:', appData.clients.length, 'Projects:', appData.projects.length, 'Entries:', appData.entries.length);
+        console.log('Data loaded successfully from Firestore');
 
     } catch (error) {
         console.error('Load Firestore data error:', error);
         alert('Fehler beim Laden der Daten: ' + error.message);
-    }
-}
-
-// ============================================
-// DATA MIGRATION FROM LOCALSTORAGE
-// ============================================
-
-function checkForLocalDataMigration() {
-    const hasLocalData = localStorage.getItem(STORAGE_KEYS.CLIENTS) ||
-                        localStorage.getItem(STORAGE_KEYS.PROJECTS) ||
-                        localStorage.getItem(STORAGE_KEYS.ENTRIES);
-
-    if (hasLocalData) {
-        // Count local data
-        const clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
-        const projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]');
-        const entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES) || '[]');
-
-        const info = `${entries.length} Zeiteinträge, ${projects.length} Projekte und ${clients.length} Kunden`;
-        document.getElementById('migrationInfo').textContent = `Du hast lokale Daten: ${info}. Möchtest du diese in die Cloud migrieren?`;
-
-        document.getElementById('orgSetupForm').style.display = 'none';
-        document.getElementById('migrationPrompt').style.display = 'block';
-    } else {
-        // No local data, load Firestore data and show app
-        loadFirestoreData().then(() => showApp());
-    }
-}
-
-function checkLocalDataForMigration() {
-    closeModal('orgSettingsModal');
-    checkForLocalDataMigration();
-}
-
-async function migrateLocalData() {
-    try {
-        const clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
-        const projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]');
-        const entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES) || '[]');
-
-        const orgRef = db.collection('organizations').doc(currentOrganization.id);
-
-        // Migrate clients
-        for (const client of clients) {
-            await orgRef.collection('clients').doc(client.id).set(client);
-        }
-
-        // Migrate projects
-        for (const project of projects) {
-            await orgRef.collection('projects').doc(project.id).set(project);
-        }
-
-        // Migrate time entries
-        for (const entry of entries) {
-            // Add current user as the creator if not set
-            if (!entry.userId) {
-                entry.userId = currentFirebaseUser.uid;
-                entry.userName = currentFirebaseUser.displayName || currentFirebaseUser.email;
-            }
-            await orgRef.collection('timeEntries').doc(entry.id).set(entry);
-        }
-
-        alert(`Migration erfolgreich! ${entries.length} Einträge, ${projects.length} Projekte und ${clients.length} Kunden wurden migriert.`);
-
-        // Clear localStorage
-        localStorage.removeItem(STORAGE_KEYS.CLIENTS);
-        localStorage.removeItem(STORAGE_KEYS.PROJECTS);
-        localStorage.removeItem(STORAGE_KEYS.ENTRIES);
-        localStorage.removeItem(STORAGE_KEYS.USERS);
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-        localStorage.removeItem(STORAGE_KEYS.TAGS);
-
-        // Load Firestore data and show app
-        await loadFirestoreData();
-        showApp();
-
-    } catch (error) {
-        console.error('Migration error:', error);
-        alert('Fehler bei der Migration: ' + error.message);
-    }
-}
-
-function skipMigration() {
-    // Clear localStorage
-    if (confirm('Möchtest du die lokalen Daten wirklich verwerfen?')) {
-        localStorage.removeItem(STORAGE_KEYS.CLIENTS);
-        localStorage.removeItem(STORAGE_KEYS.PROJECTS);
-        localStorage.removeItem(STORAGE_KEYS.ENTRIES);
-        localStorage.removeItem(STORAGE_KEYS.USERS);
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-        localStorage.removeItem(STORAGE_KEYS.TAGS);
-
-        loadFirestoreData().then(() => showApp());
     }
 }
 
@@ -489,6 +367,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
+    console.log('Initializing app with data:', {
+        clients: appData.clients.length,
+        projects: appData.projects.length,
+        entries: appData.entries.length
+    });
+
     renderUsers();
     renderClients();
     renderProjects();
@@ -498,6 +382,8 @@ function initializeApp() {
     populateExportDropdowns();
     initCharts();
     updateCharts();
+
+    console.log('App initialization complete');
 }
 
 // Deprecated: Data is now loaded from Firestore via loadFirestoreData()
@@ -520,6 +406,9 @@ function setDefaultDates() {
     document.getElementById('filterStartDate').value = firstOfMonth.toISOString().split('T')[0];
     document.getElementById('filterEndDate').value = today;
 
+    // Set period dropdown to current month by default
+    document.getElementById('filterPeriod').value = 'current-month';
+
     // Export default: current month
     const monthInput = document.getElementById('customerPdfMonth');
     if (monthInput) {
@@ -528,6 +417,29 @@ function setDefaultDates() {
 
     // Setup time input auto-formatting
     setupTimeInputFormatting();
+}
+
+function handlePeriodChange() {
+    const period = document.getElementById('filterPeriod').value;
+    const today = new Date();
+    let startDate, endDate;
+
+    if (period === 'current-month') {
+        // Current month: from 1st to today
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = today;
+    } else if (period === 'last-month') {
+        // Last month: from 1st to last day of previous month
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else {
+        // Custom - don't change dates, let user set them manually
+        return;
+    }
+
+    document.getElementById('filterStartDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('filterEndDate').value = endDate.toISOString().split('T')[0];
+    updateCharts();
 }
 
 // Auto-format time inputs (12 → 12:00, 1245 → 12:45)
