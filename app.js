@@ -635,6 +635,55 @@ function handlePeriodChange() {
     updateCharts();
 }
 
+function clearAllFilters() {
+    // Reset all filter dropdowns
+    document.getElementById('filterPeriod').value = 'custom';
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    document.getElementById('filterClient').value = '';
+    document.getElementById('filterProject').value = '';
+    document.getElementById('filterTag').value = '';
+    document.getElementById('filterUser').value = '';
+
+    // Update charts with cleared filters
+    updateCharts();
+    showNotification('Alle Filter wurden zurückgesetzt', 'success');
+}
+
+function filterByClient(clientName) {
+    const client = appData.clients.find(c => c.name === clientName);
+    if (client) {
+        document.getElementById('filterClient').value = client.id;
+        updateCharts();
+        showNotification(`Gefiltert nach Kunde: ${clientName}`, 'info');
+    }
+}
+
+function filterByProject(projectName) {
+    const project = appData.projects.find(p => p.name === projectName);
+    if (project) {
+        document.getElementById('filterProject').value = project.id;
+        updateCharts();
+        showNotification(`Gefiltert nach Projekt: ${projectName}`, 'info');
+    }
+}
+
+function filterByTag(tagName) {
+    document.getElementById('filterTag').value = tagName;
+    updateCharts();
+    showNotification(`Gefiltert nach Tag: ${tagName}`, 'info');
+}
+
+function filterByUser(userName) {
+    const entries = appData.entries;
+    const entry = entries.find(e => e.userName === userName);
+    if (entry && entry.userId) {
+        document.getElementById('filterUser').value = entry.userId;
+        updateCharts();
+        showNotification(`Gefiltert nach Benutzer: ${userName}`, 'info');
+    }
+}
+
 // Auto-format time inputs (12 → 12:00, 1245 → 12:45)
 function setupTimeInputFormatting() {
     const timeInputs = [
@@ -1630,7 +1679,16 @@ function initCharts() {
     charts.client = new Chart(document.getElementById('clientChart'), {
         type: 'doughnut',
         data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
-        options: chartConfig
+        options: {
+            ...chartConfig,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const clientName = charts.client.data.labels[index];
+                    filterByClient(clientName);
+                }
+            }
+        }
     });
 
     // Project Chart (Bar)
@@ -1643,6 +1701,13 @@ function initCharts() {
             plugins: {
                 ...chartConfig.plugins,
                 legend: { display: false }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const projectName = charts.project.data.labels[index];
+                    filterByProject(projectName);
+                }
             }
         }
     });
@@ -1686,7 +1751,16 @@ function initCharts() {
     charts.tag = new Chart(document.getElementById('tagChart'), {
         type: 'pie',
         data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
-        options: chartConfig
+        options: {
+            ...chartConfig,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const tagName = charts.tag.data.labels[index];
+                    filterByTag(tagName);
+                }
+            }
+        }
     });
 
     // User Chart (Bar)
@@ -1698,6 +1772,13 @@ function initCharts() {
             plugins: {
                 ...chartConfig.plugins,
                 legend: { display: false }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const userName = charts.user.data.labels[index];
+                    filterByUser(userName);
+                }
             }
         }
     });
