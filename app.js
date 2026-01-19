@@ -559,8 +559,15 @@ function scrollToTop() {
 // ============================================
 
 function renderUsers() {
+    // Deprecated: User selection removed, now using Firebase auth
+    // Only render if elements exist (backwards compatibility)
     const select = document.getElementById('currentUser');
     const filterSelect = document.getElementById('filterUser');
+
+    if (!select || !filterSelect) {
+        console.log('User selection elements not found - using Firebase auth instead');
+        return;
+    }
 
     select.innerHTML = '<option value="">Benutzer wählen...</option>';
     filterSelect.innerHTML = '<option value="">Alle Benutzer</option>';
