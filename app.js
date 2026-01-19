@@ -25,6 +25,8 @@ const db = firebase.firestore();
 let currentFirebaseUser = null;
 let currentOrganization = null;
 let unsubscribeListeners = [];
+let domReady = false;
+let pendingAuthUser = null;
 
 // ============================================
 // DATA STORAGE
@@ -72,9 +74,22 @@ let charts = {
 
 // Auth State Observer
 auth.onAuthStateChanged(async (user) => {
+    console.log('Auth state changed:', user ? user.email : 'logged out', 'DOM ready:', domReady);
+
+    if (!domReady) {
+        // Store user and wait for DOM to be ready
+        pendingAuthUser = user;
+        console.log('DOM not ready, storing user for later');
+        return;
+    }
+
+    await handleAuthStateChange(user);
+});
+
+async function handleAuthStateChange(user) {
     if (user) {
         currentFirebaseUser = user;
-        console.log('User logged in:', user.email);
+        console.log('Handling auth for user:', user.email);
 
         // Check if user has an organization
         const userDoc = await db.collection('users').doc(user.uid).get();
@@ -94,7 +109,7 @@ auth.onAuthStateChanged(async (user) => {
         currentOrganization = null;
         showAuthScreen();
     }
-});
+}
 
 function showAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
@@ -102,6 +117,7 @@ function showAuthScreen() {
 }
 
 function showApp() {
+    console.log('showApp() called');
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
 
@@ -361,9 +377,16 @@ async function loadFirestoreData() {
 // INITIALIZATION
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Auth state observer will handle initialization
-    console.log('App loaded, waiting for auth state...');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOM loaded');
+    domReady = true;
+
+    // If auth state changed before DOM was ready, handle it now
+    if (pendingAuthUser !== null) {
+        console.log('Processing pending auth user');
+        await handleAuthStateChange(pendingAuthUser);
+        pendingAuthUser = null;
+    }
 });
 
 function initializeApp() {
