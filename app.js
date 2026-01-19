@@ -855,6 +855,7 @@ function renderProjects() {
                             <span>⏱️ ${formatHours(totalHours)} erfasst${project.budgetHours ? ` / ${formatHours(project.budgetHours)} Budget` : ''}</span>
                             ${effectiveRate > 0 ? `<span>💰 ${effectiveRate.toFixed(2)}€/Std.${project.hourlyRate !== null && project.hourlyRate !== undefined ? ' (Projekt)' : ''}</span>` : ''}
                             ${project.deadline ? `<span>📅 Deadline: ${formatDate(project.deadline)}</span>` : ''}
+                            <span>⏲️ Intervall: ${project.minInterval || 15} Min.</span>
                         </div>
                         ${project.budgetHours ? `
                             <div class="progress-bar">
@@ -892,6 +893,7 @@ async function saveProject(event) {
         hourlyRate: hourlyRateValue ? parseFloat(hourlyRateValue) : null,
         deadline: document.getElementById('projectDeadline').value,
         status: document.getElementById('projectStatus').value,
+        minInterval: parseInt(document.getElementById('projectMinInterval').value) || 15,
         createdAt: new Date().toISOString()
     };
 
@@ -979,6 +981,13 @@ function getStatusLabel(status) {
         completed: 'Abgeschlossen'
     };
     return labels[status] || status;
+}
+
+// Round duration to project's minimum interval
+function roundToInterval(durationHours, intervalMinutes) {
+    const durationMinutes = durationHours * 60;
+    const roundedMinutes = Math.ceil(durationMinutes / intervalMinutes) * intervalMinutes;
+    return roundedMinutes / 60; // Convert back to hours
 }
 
 // ============================================
@@ -1071,12 +1080,17 @@ async function saveTimeEntry(event) {
     // Calculate duration in hours
     const start = new Date(`${date}T${startTime}`);
     const end = new Date(`${date}T${endTime}`);
-    const duration = (end - start) / (1000 * 60 * 60);
+    let duration = (end - start) / (1000 * 60 * 60);
 
     if (duration <= 0) {
         alert('Die Endzeit muss nach der Startzeit liegen!');
         return;
     }
+
+    // Round to project's minimum interval (default: 15 minutes)
+    const project = appData.projects.find(p => p.id === projectId);
+    const minInterval = project?.minInterval || 15;
+    duration = roundToInterval(duration, minInterval);
 
     const entryId = generateId();
     const entry = {
@@ -1198,7 +1212,7 @@ async function updateTimeEntry(event) {
 
     const start = new Date(`${date}T${startTime}`);
     const end = new Date(`${date}T${endTime}`);
-    const duration = (end - start) / (1000 * 60 * 60);
+    let duration = (end - start) / (1000 * 60 * 60);
 
     if (duration <= 0) {
         alert('Die Endzeit muss nach der Startzeit liegen!');
@@ -1211,13 +1225,20 @@ async function updateTimeEntry(event) {
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
 
+    const projectId = document.getElementById('editEntryProject').value;
+
+    // Round to project's minimum interval (default: 15 minutes)
+    const project = appData.projects.find(p => p.id === projectId);
+    const minInterval = project?.minInterval || 15;
+    duration = roundToInterval(duration, minInterval);
+
     const updates = {
         date: date,
         startTime: startTime,
         endTime: endTime,
         duration: duration,
         clientId: document.getElementById('editEntryClient').value,
-        projectId: document.getElementById('editEntryProject').value,
+        projectId: projectId,
         tags: tagsArray,
         description: document.getElementById('editEntryDescription').value.trim()
     };
