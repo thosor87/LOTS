@@ -100,38 +100,35 @@
         </div>
     </header>
 
+    <!-- Stats Bar (shown when logged in) -->
+    <div id="statsBar" class="stats-bar" style="display: none;">
+        <div class="stats-bar-content">
+            <div class="stat-item">
+                <span class="stat-icon">◉</span>
+                <span class="stat-value" id="totalHoursToday">0h</span>
+                <span class="stat-label">Heute</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">◆</span>
+                <span class="stat-value" id="totalHoursMonth">0h</span>
+                <span class="stat-label">Monat</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">✦</span>
+                <span class="stat-value" id="activeProjects">0</span>
+                <span class="stat-label">Projekte</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">+</span>
+                <span class="stat-value" id="totalClients">0</span>
+                <span class="stat-label">Kunden</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content (hidden until logged in) -->
     <div id="appContent" style="display: none;">
-    <main class="main">
-        <!-- Hero Section -->
-        <section class="hero" id="dashboard">
-            <div class="hero-content">
-                <h1>Willkommen bei <span class="accent">LOTS</span> ✦</h1>
-                <p class="hero-subtitle">LexOffice Time Scheduling – Professionelle Zeiterfassung für Teams</p>
-                <div class="hero-stats">
-                    <div class="stat-card">
-                        <span class="stat-icon">◉</span>
-                        <span class="stat-value" id="totalHoursToday">0h</span>
-                        <span class="stat-label">Heute erfasst</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">◆</span>
-                        <span class="stat-value" id="totalHoursMonth">0h</span>
-                        <span class="stat-label">Diesen Monat</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">✦</span>
-                        <span class="stat-value" id="activeProjects">0</span>
-                        <span class="stat-label">Aktive Projekte</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">+</span>
-                        <span class="stat-value" id="totalClients">0</span>
-                        <span class="stat-label">Kunden</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <main class="main" id="dashboard">
 
         <!-- Zeiterfassung Section -->
         <section class="section" id="zeiterfassung">
@@ -196,7 +193,8 @@
                             </div>
                             <div class="form-group">
                                 <label for="entryTags">Tags (Stichworte)</label>
-                                <input type="text" id="entryTags" placeholder="z.B. meeting, design, review">
+                                <input type="text" id="entryTags" list="tagsSuggestions" placeholder="z.B. meeting, design, review">
+                                <datalist id="tagsSuggestions"></datalist>
                                 <small>Kommagetrennte Stichworte</small>
                             </div>
                             <div class="form-group full-width">
@@ -211,8 +209,21 @@
 
             <!-- Aktuelle Einträge -->
             <div class="entries-list">
-                <h3>Heutige Einträge</h3>
+                <div class="entries-header">
+                    <h3>Heutige Einträge</h3>
+                    <div class="view-toggle">
+                        <button class="btn btn-small btn-secondary active" id="listViewBtn" onclick="switchTodayView('list')">
+                            ≡ Liste
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="calendarViewBtn" onclick="switchTodayView('calendar')">
+                            📅 Kalender
+                        </button>
+                    </div>
+                </div>
                 <div id="todayEntries" class="entries-container">
+                    <p class="empty-state">Noch keine Einträge für heute ✦</p>
+                </div>
+                <div id="todayCalendar" class="calendar-timeline" style="display: none;">
                     <p class="empty-state">Noch keine Einträge für heute ✦</p>
                 </div>
             </div>
@@ -290,6 +301,9 @@
                         <option value="">Alle Benutzer</option>
                     </select>
                 </div>
+                <button class="btn btn-small btn-secondary" onclick="clearAllFilters()" title="Alle Filter zurücksetzen">
+                    ✕ Alle Filter löschen
+                </button>
             </div>
 
             <!-- Charts Grid -->
@@ -322,23 +336,44 @@
 
             <!-- Detailtabelle -->
             <div class="detail-table-container">
-                <h3>Detaillierte Auflistung</h3>
-                <table class="detail-table" id="detailTable">
-                    <thead>
-                        <tr>
-                            <th>Datum</th>
-                            <th>Benutzer</th>
-                            <th>Kunde</th>
-                            <th>Projekt</th>
-                            <th>Beschreibung</th>
-                            <th>Tags</th>
-                            <th>Dauer</th>
-                            <th>Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailTableBody">
-                    </tbody>
-                </table>
+                <div class="entries-header">
+                    <h3>Detaillierte Auflistung</h3>
+                    <div class="view-toggle">
+                        <button class="btn btn-small btn-secondary active" id="detailTableViewBtn" onclick="switchDetailView('table')">
+                            ≡ Tabelle
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="detailMonthViewBtn" onclick="switchDetailView('month')">
+                            📅 Monat
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="detailWeekViewBtn" onclick="switchDetailView('week')">
+                            📊 Woche
+                        </button>
+                    </div>
+                </div>
+                <div id="detailTableView">
+                    <table class="detail-table" id="detailTable">
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Benutzer</th>
+                                <th>Kunde</th>
+                                <th>Projekt</th>
+                                <th>Beschreibung</th>
+                                <th>Tags</th>
+                                <th>Dauer</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="detailMonthView" class="calendar-month-view" style="display: none;">
+                    <!-- Month calendar will be rendered here -->
+                </div>
+                <div id="detailWeekView" class="calendar-week-view" style="display: none;">
+                    <!-- Week timeline will be rendered here -->
+                </div>
             </div>
         </section>
 
@@ -622,7 +657,7 @@
                     </div>
                     <div class="form-group">
                         <label for="editEntryTags">Tags</label>
-                        <input type="text" id="editEntryTags" placeholder="z.B. meeting, design">
+                        <input type="text" id="editEntryTags" list="tagsSuggestions" placeholder="z.B. meeting, design">
                     </div>
                     <div class="form-group full-width">
                         <label for="editEntryDescription">Beschreibung</label>

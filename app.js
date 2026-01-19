@@ -199,12 +199,16 @@ async function handleAuthStateChange(user) {
 function showAuthScreen() {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appContent').style.display = 'none';
+    const statsBar = document.getElementById('statsBar');
+    if (statsBar) statsBar.style.display = 'none';
 }
 
 function showApp() {
     console.log('showApp() called');
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
+    const statsBar = document.getElementById('statsBar');
+    if (statsBar) statsBar.style.display = 'block';
 
     // Update user info in header
     document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
@@ -629,6 +633,55 @@ function handlePeriodChange() {
     document.getElementById('filterStartDate').value = startDate.toISOString().split('T')[0];
     document.getElementById('filterEndDate').value = endDate.toISOString().split('T')[0];
     updateCharts();
+}
+
+function clearAllFilters() {
+    // Reset all filter dropdowns
+    document.getElementById('filterPeriod').value = 'custom';
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    document.getElementById('filterClient').value = '';
+    document.getElementById('filterProject').value = '';
+    document.getElementById('filterTag').value = '';
+    document.getElementById('filterUser').value = '';
+
+    // Update charts with cleared filters
+    updateCharts();
+    showNotification('Alle Filter wurden zurückgesetzt', 'success');
+}
+
+function filterByClient(clientName) {
+    const client = appData.clients.find(c => c.name === clientName);
+    if (client) {
+        document.getElementById('filterClient').value = client.id;
+        updateCharts();
+        showNotification(`Gefiltert nach Kunde: ${clientName}`, 'info');
+    }
+}
+
+function filterByProject(projectName) {
+    const project = appData.projects.find(p => p.name === projectName);
+    if (project) {
+        document.getElementById('filterProject').value = project.id;
+        updateCharts();
+        showNotification(`Gefiltert nach Projekt: ${projectName}`, 'info');
+    }
+}
+
+function filterByTag(tagName) {
+    document.getElementById('filterTag').value = tagName;
+    updateCharts();
+    showNotification(`Gefiltert nach Tag: ${tagName}`, 'info');
+}
+
+function filterByUser(userName) {
+    const entries = appData.entries;
+    const entry = entries.find(e => e.userName === userName);
+    if (entry && entry.userId) {
+        document.getElementById('filterUser').value = entry.userId;
+        updateCharts();
+        showNotification(`Gefiltert nach Benutzer: ${userName}`, 'info');
+    }
 }
 
 // Auto-format time inputs (12 → 12:00, 1245 → 12:45)
@@ -1446,8 +1499,8 @@ function quickStartProject(projectId) {
 
     // Fill form
     document.getElementById('entryDate').value = today;
-    document.getElementById('entryStartTime').value = currentTime;
-    document.getElementById('entryEndTime').value = ''; // User fills this in
+    document.getElementById('entryStartTime').value = ''; // User fills this in
+    document.getElementById('entryEndTime').value = currentTime;
     document.getElementById('entryClient').value = project.clientId;
 
     // Load projects for client, then select project
@@ -1456,10 +1509,10 @@ function quickStartProject(projectId) {
         document.getElementById('entryProject').value = projectId;
     }, 100);
 
-    // Scroll to form
-    document.getElementById('entryEndTime').focus();
+    // Focus on start time
+    document.getElementById('entryStartTime').focus();
 
-    showNotification('Projekt vorausgewählt - bitte Endzeit eintragen', 'info');
+    showNotification('Projekt vorausgewählt - bitte Startzeit eintragen', 'info');
 }
 
 function editEntry(entryId) {
@@ -1626,7 +1679,16 @@ function initCharts() {
     charts.client = new Chart(document.getElementById('clientChart'), {
         type: 'doughnut',
         data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
-        options: chartConfig
+        options: {
+            ...chartConfig,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const clientName = charts.client.data.labels[index];
+                    filterByClient(clientName);
+                }
+            }
+        }
     });
 
     // Project Chart (Bar)
@@ -1639,6 +1701,13 @@ function initCharts() {
             plugins: {
                 ...chartConfig.plugins,
                 legend: { display: false }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const projectName = charts.project.data.labels[index];
+                    filterByProject(projectName);
+                }
             }
         }
     });
@@ -1682,7 +1751,16 @@ function initCharts() {
     charts.tag = new Chart(document.getElementById('tagChart'), {
         type: 'pie',
         data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
-        options: chartConfig
+        options: {
+            ...chartConfig,
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const tagName = charts.tag.data.labels[index];
+                    filterByTag(tagName);
+                }
+            }
+        }
     });
 
     // User Chart (Bar)
@@ -1694,6 +1772,13 @@ function initCharts() {
             plugins: {
                 ...chartConfig.plugins,
                 legend: { display: false }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const userName = charts.user.data.labels[index];
+                    filterByUser(userName);
+                }
             }
         }
     });
@@ -1921,6 +2006,18 @@ function populateFilterDropdowns() {
         Array.from(uniqueUsers.entries())
             .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
             .join('');
+
+    // Populate tags suggestions for autocomplete
+    populateTagsSuggestions();
+}
+
+function populateTagsSuggestions() {
+    const datalist = document.getElementById('tagsSuggestions');
+    if (!datalist) return;
+
+    datalist.innerHTML = appData.tags
+        .map(tag => `<option value="${escapeHtml(tag)}">`)
+        .join('');
 }
 
 function populateExportDropdowns() {
@@ -2114,31 +2211,71 @@ function exportPDF(type) {
     const includeDetails = type === 'customer' ? document.getElementById('includeDetails').checked : true;
 
     if (includeDetails) {
-        const tableData = entries.map(entry => {
-            const userName = entry.userName || 'Unbekannt';
-            const project = appData.projects.find(p => p.id === entry.projectId);
-
-            if (type === 'customer') {
-                return [
-                    formatDate(entry.date),
-                    project ? project.name : '-',
-                    entry.description || '-',
-                    formatHours(entry.duration)
-                ];
-            } else {
-                return [
-                    formatDate(entry.date),
-                    userName,
-                    project ? project.name : '-',
-                    entry.description || '-',
-                    formatHours(entry.duration)
-                ];
+        // Group entries by project
+        const projectGroups = {};
+        entries.forEach(entry => {
+            const projectId = entry.projectId || 'unknown';
+            if (!projectGroups[projectId]) {
+                projectGroups[projectId] = [];
             }
+            projectGroups[projectId].push(entry);
+        });
+
+        // Build table data with project grouping
+        const tableData = [];
+        Object.keys(projectGroups).forEach(projectId => {
+            const projectEntries = projectGroups[projectId];
+            const project = appData.projects.find(p => p.id === projectId);
+            const projectClient = project ? appData.clients.find(c => c.id === project.clientId) : null;
+            const hourlyRate = (project && project.hourlyRate !== null && project.hourlyRate !== undefined)
+                ? project.hourlyRate
+                : (projectClient ? projectClient.hourlyRate || 0 : 0);
+
+            // Project header row
+            tableData.push([{
+                content: project ? project.name : 'Unbekanntes Projekt',
+                colSpan: type === 'customer' ? 5 : 6,
+                styles: { fillColor: [236, 218, 239], fontStyle: 'bold', textColor: [44, 62, 80] }
+            }]);
+
+            // Project entries
+            projectEntries.forEach(entry => {
+                const userName = entry.userName || 'Unbekannt';
+                const cost = entry.duration * hourlyRate;
+
+                if (type === 'customer') {
+                    tableData.push([
+                        formatDate(entry.date),
+                        entry.description || '-',
+                        formatHours(entry.duration),
+                        hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                        cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                    ]);
+                } else {
+                    tableData.push([
+                        formatDate(entry.date),
+                        userName,
+                        entry.description || '-',
+                        formatHours(entry.duration),
+                        hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
+                        cost > 0 ? cost.toFixed(2) + ' €' : '-'
+                    ]);
+                }
+            });
+
+            // Project subtotal row
+            const projectTotal = projectEntries.reduce((sum, e) => sum + e.duration, 0);
+            const projectCost = projectTotal * hourlyRate;
+            tableData.push([{
+                content: 'Zwischensumme: ' + formatHours(projectTotal) + (projectCost > 0 ? ' = ' + projectCost.toFixed(2) + ' €' : ''),
+                colSpan: type === 'customer' ? 5 : 6,
+                styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'right' }
+            }]);
         });
 
         const headers = type === 'customer'
-            ? ['Datum', 'Projekt', 'Beschreibung', 'Dauer']
-            : ['Datum', 'Benutzer', 'Projekt', 'Beschreibung', 'Dauer'];
+            ? ['Datum', 'Beschreibung', 'Dauer', '€/Std.', 'Summe']
+            : ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'];
 
         doc.autoTable({
             startY: yPos,
@@ -2154,15 +2291,17 @@ function exportPDF(type) {
             },
             columnStyles: type === 'customer' ? {
                 0: { cellWidth: 25 },
-                1: { cellWidth: 40 },
-                2: { cellWidth: 'auto' },
-                3: { cellWidth: 20, halign: 'right' }
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 20, halign: 'right' },
+                3: { cellWidth: 20, halign: 'right' },
+                4: { cellWidth: 25, halign: 'right' }
             } : {
                 0: { cellWidth: 22 },
                 1: { cellWidth: 25 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 'auto' },
-                4: { cellWidth: 18, halign: 'right' }
+                2: { cellWidth: 'auto' },
+                3: { cellWidth: 18, halign: 'right' },
+                4: { cellWidth: 20, halign: 'right' },
+                5: { cellWidth: 25, halign: 'right' }
             }
         });
     }
@@ -2281,4 +2420,236 @@ function generateColors(count) {
         colors.push(baseColors[i % baseColors.length]);
     }
     return colors;
+}
+
+// ============================================
+// TODAY ENTRIES VIEW TOGGLE
+// ============================================
+
+function switchTodayView(view) {
+    const listView = document.getElementById('todayEntries');
+    const calendarView = document.getElementById('todayCalendar');
+    const listBtn = document.getElementById('listViewBtn');
+    const calendarBtn = document.getElementById('calendarViewBtn');
+
+    if (view === 'list') {
+        listView.style.display = 'flex';
+        calendarView.style.display = 'none';
+        listBtn.classList.add('active');
+        calendarBtn.classList.remove('active');
+    } else {
+        listView.style.display = 'none';
+        calendarView.style.display = 'block';
+        listBtn.classList.remove('active');
+        calendarBtn.classList.add('active');
+        renderTodayCalendar();
+    }
+}
+
+function renderTodayCalendar() {
+    const container = document.getElementById('todayCalendar');
+    const today = new Date().toISOString().split('T')[0];
+    let entries = appData.entries.filter(e => e.date === today);
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
+        return;
+    }
+
+    // Sort by start time
+    entries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Generate timeline (6:00 - 22:00)
+    let html = '<div class="timeline-container">';
+    html += '<div class="timeline-hours">';
+    for (let h = 6; h <= 22; h++) {
+        html += '<div class="timeline-hour">' + String(h).padStart(2, '0') + ':00</div>';
+    }
+    html += '</div>';
+    html += '<div class="timeline-entries">';
+
+    entries.forEach(entry => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        // Calculate position and height
+        const [startH, startM] = entry.startTime.split(':').map(Number);
+        const [endH, endM] = entry.endTime.split(':').map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100; // 6:00 - 22:00 = 16 hours
+        const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+
+        html += '<div class="timeline-entry" style="top: ' + top + '%; height: ' + height + '%;">';
+        html += '<div class="timeline-entry-time">' + entry.startTime + ' - ' + entry.endTime + '</div>';
+        html += '<div class="timeline-entry-project">' + (project ? escapeHtml(project.name) : 'Unbekannt') + '</div>';
+        html += '<div class="timeline-entry-client">' + (client ? escapeHtml(client.name) : '') + '</div>';
+        html += '<div class="timeline-entry-duration">' + formatHours(entry.duration) + '</div>';
+        html += '</div>';
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+// ============================================
+// DETAIL VIEW TOGGLE & CALENDAR
+// ============================================
+
+function switchDetailView(view) {
+    const tableView = document.getElementById('detailTableView');
+    const monthView = document.getElementById('detailMonthView');
+    const weekView = document.getElementById('detailWeekView');
+    const tableBtn = document.getElementById('detailTableViewBtn');
+    const monthBtn = document.getElementById('detailMonthViewBtn');
+    const weekBtn = document.getElementById('detailWeekViewBtn');
+
+    // Hide all views
+    tableView.style.display = 'none';
+    monthView.style.display = 'none';
+    weekView.style.display = 'none';
+
+    // Remove active from all buttons
+    tableBtn.classList.remove('active');
+    monthBtn.classList.remove('active');
+    weekBtn.classList.remove('active');
+
+    // Show selected view
+    if (view === 'table') {
+        tableView.style.display = 'block';
+        tableBtn.classList.add('active');
+    } else if (view === 'month') {
+        monthView.style.display = 'block';
+        monthBtn.classList.add('active');
+        renderDetailMonthView();
+    } else if (view === 'week') {
+        weekView.style.display = 'block';
+        weekBtn.classList.add('active');
+        renderDetailWeekView();
+    }
+}
+
+function renderDetailMonthView() {
+    const container = document.getElementById('detailMonthView');
+    const entries = getFilteredEntries();
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Keine Einträge im ausgewählten Zeitraum</p>';
+        return;
+    }
+
+    // Determine month range
+    const dates = entries.map(e => e.date).sort();
+    const startDate = new Date(dates[0]);
+    const endDate = new Date(dates[dates.length - 1]);
+
+    // Get first day of start month
+    const year = startDate.getFullYear();
+    const month = startDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    // Get day of week for first day (0 = Sunday, adjust to Monday = 0)
+    let startDayOfWeek = firstDay.getDay();
+    startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const monthName = firstDay.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+    let html = '<div class="month-calendar">';
+    html += '<div class="month-header">' + monthName + '</div>';
+    html += '<div class="calendar-grid">';
+
+    // Weekday headers
+    const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    weekdays.forEach(day => {
+        html += '<div class="calendar-weekday">' + day + '</div>';
+    });
+
+    // Empty cells before first day
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+
+    // Days of month
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const dayEntries = entries.filter(e => e.date === dateStr);
+        const totalHours = dayEntries.reduce((sum, e) => sum + e.duration, 0);
+
+        html += '<div class="calendar-day' + (dayEntries.length > 0 ? ' has-entries' : '') + '">';
+        html += '<div class="day-number">' + day + '</div>';
+        if (dayEntries.length > 0) {
+            html += '<div class="day-hours">' + formatHours(totalHours) + '</div>';
+            html += '<div class="day-entries-count">' + dayEntries.length + ' ' + (dayEntries.length === 1 ? 'Eintrag' : 'Einträge') + '</div>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+function renderDetailWeekView() {
+    const container = document.getElementById('detailWeekView');
+    const entries = getFilteredEntries();
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="empty-state">Keine Einträge im ausgewählten Zeitraum</p>';
+        return;
+    }
+
+    // Get current week or first week with entries
+    const dates = entries.map(e => e.date).sort();
+    const startDate = new Date(dates[0]);
+
+    // Get Monday of the week
+    const dayOfWeek = startDate.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(startDate);
+    monday.setDate(startDate.getDate() + diff);
+
+    let html = '<div class="week-timeline-container">';
+
+    // Week days
+    for (let i = 0; i < 7; i++) {
+        const currentDay = new Date(monday);
+        currentDay.setDate(monday.getDate() + i);
+        const dateStr = currentDay.toISOString().split('T')[0];
+        const dayName = currentDay.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+        const dayEntries = entries.filter(e => e.date === dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        html += '<div class="week-day-column">';
+        html += '<div class="week-day-header">' + dayName + '</div>';
+        html += '<div class="week-day-timeline">';
+
+        // Timeline hours (6:00 - 22:00)
+        html += '<div class="week-timeline-hours">';
+        for (let h = 6; h <= 22; h++) {
+            html += '<div class="week-timeline-hour">' + String(h).padStart(2, '0') + '</div>';
+        }
+        html += '</div>';
+
+        // Entries
+        html += '<div class="week-timeline-entries">';
+        dayEntries.forEach(entry => {
+            const project = appData.projects.find(p => p.id === entry.projectId);
+            const [startH, startM] = entry.startTime.split(':').map(Number);
+            const [endH, endM] = entry.endTime.split(':').map(Number);
+            const startMinutes = startH * 60 + startM;
+            const endMinutes = endH * 60 + endM;
+            const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100;
+            const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+
+            html += '<div class="week-timeline-entry" style="top: ' + top + '%; height: ' + height + '%;" title="' + (project ? project.name : '') + '">';
+            html += '<div class="week-entry-time">' + entry.startTime.substring(0, 5) + '</div>';
+            html += '<div class="week-entry-project">' + (project ? escapeHtml(project.name).substring(0, 15) : '?') + '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+
+        html += '</div></div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
 }
