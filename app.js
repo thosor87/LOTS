@@ -304,6 +304,11 @@ async function showOrgSettings() {
             }
         }
 
+        // Load current user's color
+        const currentUserDoc = await db.collection('users').doc(currentFirebaseUser.uid).get();
+        const userColor = currentUserDoc.data().color || '#9B59B6'; // Default purple
+        document.getElementById('userColorSetting').value = userColor;
+
         openModal('orgSettingsModal');
     } catch (error) {
         console.error('Show org settings error:', error);
@@ -316,6 +321,22 @@ function copyInviteCode() {
     navigator.clipboard.writeText(code).then(() => {
         alert('Einladungscode kopiert!');
     });
+}
+
+async function saveUserColor() {
+    try {
+        const color = document.getElementById('userColorSetting').value;
+
+        // Update in Firestore
+        await db.collection('users').doc(currentFirebaseUser.uid).update({
+            color: color
+        });
+
+        alert('Farbe erfolgreich gespeichert!');
+    } catch (error) {
+        console.error('Save user color error:', error);
+        alert('Fehler beim Speichern der Farbe: ' + error.message);
+    }
 }
 
 // ============================================
@@ -381,6 +402,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM loaded');
     domReady = true;
 
+    // Setup time input auto-formatting
+    setupTimeInputFormatting();
+
     // If auth state changed before DOM was ready, handle it now
     if (pendingAuthUser !== null) {
         console.log('Processing pending auth user');
@@ -388,6 +412,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         pendingAuthUser = null;
     }
 });
+
+// Auto-format time inputs (e.g. "1200" -> "12:00")
+function setupTimeInputFormatting() {
+    const timeInputs = [
+        'entryStartTime',
+        'entryEndTime',
+        'editEntryStartTime',
+        'editEntryEndTime'
+    ];
+
+    timeInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('blur', function() {
+                const value = this.value.replace(/\D/g, ''); // Remove non-digits
+                if (value.length === 3 || value.length === 4) {
+                    let hours, minutes;
+                    if (value.length === 3) {
+                        // e.g. "945" -> "09:45"
+                        hours = value.substring(0, 1).padStart(2, '0');
+                        minutes = value.substring(1);
+                    } else {
+                        // e.g. "1245" -> "12:45"
+                        hours = value.substring(0, 2);
+                        minutes = value.substring(2);
+                    }
+
+                    // Validate
+                    if (parseInt(hours) < 24 && parseInt(minutes) < 60) {
+                        this.value = `${hours}:${minutes}`;
+                    }
+                }
+            });
+        }
+    });
+}
 
 function initializeApp() {
     console.log('Initializing app with data:', {
@@ -1028,7 +1088,7 @@ async function saveTimeEntry(event) {
         startTime: startTime,
         endTime: endTime,
         duration: duration,
-        tags: tagsInput,
+        tags: tagsArray,
         description: description,
         createdAt: new Date().toISOString()
     };
@@ -1158,7 +1218,7 @@ async function updateTimeEntry(event) {
         duration: duration,
         clientId: document.getElementById('editEntryClient').value,
         projectId: document.getElementById('editEntryProject').value,
-        tags: tagsInput,
+        tags: tagsArray,
         description: document.getElementById('editEntryDescription').value.trim()
     };
 
@@ -1369,7 +1429,7 @@ function getFilteredEntries() {
         entries = entries.filter(e => e.projectId === projectId);
     }
     if (tag) {
-        entries = entries.filter(e => e.tags.includes(tag));
+        entries = entries.filter(e => normalizeTags(e.tags).includes(tag));
     }
     if (userId) {
         entries = entries.filter(e => e.userId === userId);
@@ -1527,6 +1587,20 @@ function populateFilterDropdowns() {
     const tagSelect = document.getElementById('filterTag');
     tagSelect.innerHTML = '<option value="">Alle Tags</option>' +
         appData.tags.map(t => `<option value="${t}">${escapeHtml(t)}</option>`).join('');
+
+    // Users dropdown - extract unique users from entries
+    const userSelect = document.getElementById('filterUser');
+    const uniqueUsers = new Map();
+    appData.entries.forEach(entry => {
+        if (entry.userId && entry.userName) {
+            uniqueUsers.set(entry.userId, entry.userName);
+        }
+    });
+
+    userSelect.innerHTML = '<option value="">Alle Benutzer</option>' +
+        Array.from(uniqueUsers.entries())
+            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .join('');
 }
 
 function populateExportDropdowns() {
