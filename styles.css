@@ -944,7 +944,7 @@ a:hover {
 }
 
 .footer-links a {
-    color: var(--gray-light);
+    color: rgba(255, 255, 255, 0.9);
     text-decoration: none;
     padding: 0 var(--spacing-sm);
     transition: color var(--transition-fast);
