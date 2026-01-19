@@ -1545,7 +1545,7 @@ a:hover {
 .stats-bar {
     background: var(--white);
     border-bottom: 1px solid var(--gray-lighter);
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-md) 0;
     position: sticky;
     top: 70px;
     z-index: 99;
@@ -1565,22 +1565,22 @@ a:hover {
 .stat-item {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
 }
 
 .stat-item .stat-icon {
-    font-size: 1.2rem;
+    font-size: 1.35rem;
     color: var(--primary);
 }
 
 .stat-item .stat-value {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: var(--dark);
 }
 
 .stat-item .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--gray);
     text-transform: uppercase;
     letter-spacing: 0.5px;
