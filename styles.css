@@ -1978,11 +1978,335 @@ a:hover {
     }
 }
 
-@media (max-width: 768px) {
-    .week-timeline-container {
+/* ============================================
+   MOBILE & RESPONSIVE STYLES
+   ============================================ */
+
+/* Burger Menu (hidden on desktop) */
+.burger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+}
+
+.burger-menu span {
+    width: 100%;
+    height: 3px;
+    background: var(--text-primary);
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.burger-menu.active span:nth-child(1) {
+    transform: rotate(45deg) translate(7px, 7px);
+}
+
+.burger-menu.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.burger-menu.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Mobile User Menu (shown inside mobile nav) */
+.mobile-user-menu {
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.user-info-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--background-secondary);
+    border-radius: 8px;
+}
+
+/* Desktop-only elements */
+.desktop-only {
+    display: flex;
+}
+
+/* ============================================
+   TABLET (iPad) - max-width: 1024px
+   ============================================ */
+
+@media (max-width: 1024px) {
+    /* Reduce padding on tablets */
+    .container {
+        padding: 1.5rem;
+    }
+
+    .section {
+        padding: 1.25rem;
+    }
+
+    /* Stats bar */
+    .stats-bar-content {
+        gap: 1rem;
+    }
+
+    .stat-item {
+        font-size: 0.9rem;
+    }
+
+    /* Charts in grid */
+    .charts-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
+    /* Forms */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+}
+
+/* ============================================
+   MOBILE - max-width: 768px
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Show burger menu, hide desktop nav */
+    .burger-menu {
+        display: flex;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+
+    /* Mobile Navigation */
+    .nav {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 280px;
+        height: 100vh;
+        background: var(--background);
+        padding: 80px 1.5rem 1.5rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        transition: right 0.3s ease;
+        z-index: 999;
+        overflow-y: auto;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .nav.mobile-active {
+        right: 0;
+    }
+
+    .nav-link {
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: left;
+        background: var(--background-secondary);
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .mobile-user-menu {
+        display: flex;
+    }
+
+    /* Header */
+    .header {
+        padding: 0.75rem 0;
+    }
+
+    .header-content {
+        gap: 1rem;
+    }
+
+    .logo-text {
+        font-size: 1.25rem;
+    }
+
+    /* Stats Bar - stack vertically on mobile */
+    .stats-bar {
+        padding: 0.75rem 0;
+    }
+
+    .stats-bar-content {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .stat-item {
+        flex: 1 1 calc(50% - 0.75rem);
+        min-width: 140px;
+        font-size: 0.85rem;
+    }
+
+    /* Container & Sections */
+    .container {
+        padding: 1rem;
+    }
+
+    .section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .section-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    /* Time Tracking */
+    .time-tracking-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .time-tracking-sidebar {
+        position: static;
+        margin-bottom: 1rem;
+    }
+
+    .timer-display {
+        font-size: 2rem;
+    }
+
+    .quick-access-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Forms */
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        flex-direction: column;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.75rem 1.25rem;
+        min-height: 44px; /* Touch-friendly */
+    }
+
+    .btn-small {
+        padding: 0.65rem 1rem;
+        min-height: 40px;
+    }
+
+    .section-actions .btn {
+        flex: 1 1 auto;
+        min-width: 120px;
+    }
+
+    /* Tables */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        font-size: 0.85rem;
+    }
+
+    th, td {
+        padding: 0.65rem;
+    }
+
+    /* Entry Cards */
+    .entry-card {
+        padding: 0.875rem;
+    }
+
+    /* Charts */
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-container {
+        height: 280px;
+    }
+
+    .filter-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .filter-group select,
+    .filter-group .btn {
+        width: 100%;
+    }
+
+    /* Modals */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+    }
+
+    .modal-header {
+        padding: 1rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+    }
+
+    /* Calendar */
     .calendar-grid {
         gap: 2px;
     }
@@ -1990,5 +2314,146 @@ a:hover {
     .calendar-day {
         min-height: 60px;
         padding: 4px;
+        font-size: 0.75rem;
+    }
+
+    .week-timeline-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Detail View */
+    .detail-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .view-toggle {
+        width: 100%;
+    }
+
+    /* Project/Client Cards */
+    .client-card,
+    .project-card {
+        padding: 1rem;
+    }
+
+    /* Auth Screen */
+    .auth-container {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+
+    /* Dark Mode Toggle on Auth */
+    #darkModeToggleAuth {
+        top: 10px;
+        right: 10px;
+    }
+
+    /* Footer */
+    .footer {
+        padding: 1.25rem 1rem;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+}
+
+/* ============================================
+   SMALL MOBILE - max-width: 480px
+   ============================================ */
+
+@media (max-width: 480px) {
+    /* Even more compact on small phones */
+    .container {
+        padding: 0.75rem;
+    }
+
+    .section {
+        padding: 0.875rem;
+    }
+
+    .logo-text {
+        font-size: 1.1rem;
+    }
+
+    /* Stats - full width items on tiny screens */
+    .stat-item {
+        flex: 1 1 100%;
+    }
+
+    /* Timer */
+    .timer-display {
+        font-size: 1.75rem;
+    }
+
+    /* Buttons even more touch-friendly */
+    .btn {
+        font-size: 0.95rem;
+    }
+
+    /* Tables - smaller text */
+    table {
+        font-size: 0.8rem;
+    }
+
+    th, td {
+        padding: 0.5rem 0.35rem;
+    }
+
+    /* Charts */
+    .chart-container {
+        height: 240px;
+    }
+
+    /* Modal takes full screen on tiny devices */
+    .modal-content {
+        width: 100%;
+        height: 100vh;
+        margin: 0;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+
+    /* Navigation even narrower */
+    .nav {
+        width: 260px;
+    }
+
+    /* Calendar days very compact */
+    .calendar-day {
+        min-height: 50px;
+        font-size: 0.7rem;
+    }
+
+    /* Week timeline single column */
+    .week-timeline-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   LANDSCAPE PHONE - max-height: 500px
+   ============================================ */
+
+@media (max-height: 500px) and (orientation: landscape) {
+    /* Reduce header height in landscape */
+    .header {
+        padding: 0.5rem 0;
+    }
+
+    .stats-bar {
+        padding: 0.5rem 0;
+    }
+
+    /* Compact modals in landscape */
+    .modal-content {
+        max-height: 90vh;
+    }
+
+    .modal-body {
+        padding: 0.75rem;
     }
 }
