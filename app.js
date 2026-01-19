@@ -396,9 +396,14 @@ async function showOrgSettings() {
         // Load current user's color
         const currentUserDoc = await db.collection('users').doc(currentFirebaseUser.uid).get();
         const userColor = currentUserDoc.data().color || '#9B59B6'; // Default purple
-        document.getElementById('userColorSetting').value = userColor;
 
+        // Open modal first, then set color to ensure visual update
         openModal('orgSettingsModal');
+
+        // Set color after modal is opened to ensure visual rendering
+        setTimeout(() => {
+            document.getElementById('userColorSetting').value = userColor;
+        }, 50);
     } catch (error) {
         console.error('Show org settings error:', error);
         showNotification('beim Laden der Einstellungen: ' + error.message, 'error');
