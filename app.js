@@ -2301,7 +2301,7 @@ function exportCSV() {
             entry.endTime,
             entry.duration.toFixed(2),
             entry.description || '',
-            entry.tags.join('; ')
+            (entry.tags && Array.isArray(entry.tags)) ? entry.tags.join('; ') : ''
         ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
     });
 
@@ -2461,7 +2461,7 @@ function exportPDF(type) {
 
             tableData.push([{
                 content: projectHeaderContent,
-                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 6),
+                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 7),
                 styles: { fillColor: [236, 218, 239], fontStyle: 'bold', textColor: [44, 62, 80] }
             }]);
 
@@ -2492,9 +2492,12 @@ function exportPDF(type) {
                         ]);
                     }
                 } else {
+                    // Regular PDF: include client name
+                    const clientName = projectClient ? projectClient.name : '-';
                     tableData.push([
                         formatDate(entry.date),
                         userName,
+                        clientName,
                         entry.description || '-',
                         formatHours(entry.duration),
                         hourlyRate > 0 ? hourlyRate.toFixed(2) + ' €' : '-',
@@ -2508,7 +2511,7 @@ function exportPDF(type) {
             const projectCost = projectTotal * hourlyRate;
             tableData.push([{
                 content: 'Zwischensumme: ' + formatHours(projectTotal) + (projectCost > 0 ? ' = ' + projectCost.toFixed(2) + ' €' : ''),
-                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 6),
+                colSpan: (type === 'customer' && isMultiUser) ? 6 : (type === 'customer' ? 5 : 7),
                 styles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'right' }
             }]);
         });
@@ -2527,7 +2530,7 @@ function exportPDF(type) {
 
         const headers = type === 'customer'
             ? (hasAnyMultiUser ? ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'] : ['Datum', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'])
-            : ['Datum', 'Benutzer', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'];
+            : ['Datum', 'Benutzer', 'Kunde', 'Beschreibung', 'Dauer', '€/Std.', 'Summe'];
 
         doc.autoTable({
             startY: yPos,
@@ -2559,10 +2562,11 @@ function exportPDF(type) {
                 : {
                     0: { cellWidth: 22 },
                     1: { cellWidth: 25 },
-                    2: { cellWidth: 'auto' },
-                    3: { cellWidth: 18, halign: 'right' },
-                    4: { cellWidth: 20, halign: 'right' },
-                    5: { cellWidth: 25, halign: 'right' }
+                    2: { cellWidth: 25 },
+                    3: { cellWidth: 'auto' },
+                    4: { cellWidth: 18, halign: 'right' },
+                    5: { cellWidth: 20, halign: 'right' },
+                    6: { cellWidth: 25, halign: 'right' }
                 }
         });
     }
