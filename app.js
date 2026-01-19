@@ -2251,6 +2251,30 @@ function populateExportDropdowns() {
         document.getElementById(id).innerHTML = '<option value="">Alle Projekte</option>';
     });
 
+    // Add change listeners for CSV export
+    document.getElementById('csvExportClient').addEventListener('change', function() {
+        const clientId = this.value;
+        if (clientId) {
+            const projects = appData.projects.filter(p => p.clientId === clientId);
+            document.getElementById('csvExportProject').innerHTML = '<option value="">Alle Projekte des Kunden</option>' +
+                projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+        } else {
+            document.getElementById('csvExportProject').innerHTML = '<option value="">Alle Projekte</option>';
+        }
+    });
+
+    // Add change listeners for PDF export
+    document.getElementById('pdfExportClient').addEventListener('change', function() {
+        const clientId = this.value;
+        if (clientId) {
+            const projects = appData.projects.filter(p => p.clientId === clientId);
+            document.getElementById('pdfExportProject').innerHTML = '<option value="">Alle Projekte des Kunden</option>' +
+                projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+        } else {
+            document.getElementById('pdfExportProject').innerHTML = '<option value="">Alle Projekte</option>';
+        }
+    });
+
     // Add change listeners for customer PDF
     document.getElementById('customerPdfClient').addEventListener('change', function() {
         const clientId = this.value;
