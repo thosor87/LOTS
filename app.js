@@ -4,6 +4,29 @@
  */
 
 // ============================================
+// FIREBASE CONFIGURATION & INITIALIZATION
+// ============================================
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBTo1iRnVajuGC0ZdXlolas3OoNzUbsvds",
+    authDomain: "lots-8ce57.firebaseapp.com",
+    projectId: "lots-8ce57",
+    storageBucket: "lots-8ce57.firebasestorage.app",
+    messagingSenderId: "94130371605",
+    appId: "1:94130371605:web:3eb0e1185626196e07221c"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Current user and organization
+let currentFirebaseUser = null;
+let currentOrganization = null;
+let unsubscribeListeners = [];
+
+// ============================================
 // DATA STORAGE
 // ============================================
 
@@ -27,7 +50,7 @@ let appData = {
     tags: []
 };
 
-let currentUser = null;
+let currentUser = null; // Deprecated: Now using currentFirebaseUser
 let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
@@ -44,17 +67,312 @@ let charts = {
 };
 
 // ============================================
+// AUTHENTICATION FUNCTIONS
+// ============================================
+
+// Auth State Observer
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        currentFirebaseUser = user;
+        console.log('User logged in:', user.email);
+
+        // Check if user has an organization
+        const userDoc = await db.collection('users').doc(user.uid).get();
+
+        if (!userDoc.exists || !userDoc.data().organizationId) {
+            // Show organization setup
+            showOrgSetup();
+        } else {
+            // Load organization and data
+            const orgId = userDoc.data().organizationId;
+            await loadOrganization(orgId);
+            await loadFirestoreData();
+            showApp();
+        }
+    } else {
+        currentFirebaseUser = null;
+        currentOrganization = null;
+        showAuthScreen();
+    }
+});
+
+function showAuthScreen() {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appContent').style.display = 'none';
+}
+
+function showApp() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appContent').style.display = 'block';
+
+    // Update user info in header
+    document.getElementById('currentUserName').textContent = currentFirebaseUser.displayName || currentFirebaseUser.email;
+    document.getElementById('orgName').textContent = currentOrganization?.name || '';
+
+    initializeApp();
+    setupNavigation();
+    setDefaultDates();
+}
+
+function showOrgSetup() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('orgSetupForm').style.display = 'block';
+}
+
+// Google Sign In
+async function signInWithGoogle() {
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await auth.signInWithPopup(provider);
+    } catch (error) {
+        console.error('Google sign in error:', error);
+        alert('Fehler beim Google Login: ' + error.message);
+    }
+}
+
+// Sign Out
+async function signOut() {
+    try {
+        // Unsubscribe from all Firestore listeners
+        unsubscribeListeners.forEach(unsub => unsub());
+        unsubscribeListeners = [];
+
+        await auth.signOut();
+    } catch (error) {
+        console.error('Sign out error:', error);
+        alert('Fehler beim Abmelden: ' + error.message);
+    }
+}
+
+// ============================================
+// ORGANIZATION FUNCTIONS
+// ============================================
+
+async function createOrganization() {
+    try {
+        const orgName = prompt('Name deiner Organisation:');
+        if (!orgName) return;
+
+        const inviteCode = generateInviteCode();
+
+        const orgRef = await db.collection('organizations').add({
+            name: orgName,
+            members: [currentFirebaseUser.uid],
+            createdBy: currentFirebaseUser.uid,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Save invite code
+        await db.collection('inviteCodes').doc(inviteCode).set({
+            organizationId: orgRef.id,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Update user document
+        await db.collection('users').doc(currentFirebaseUser.uid).set({
+            email: currentFirebaseUser.email,
+            displayName: currentFirebaseUser.displayName || currentFirebaseUser.email,
+            organizationId: orgRef.id,
+            inviteCode: inviteCode
+        });
+
+        // Load organization
+        await loadOrganization(orgRef.id);
+
+        // Load Firestore data and show app
+        await loadFirestoreData();
+        showApp();
+
+    } catch (error) {
+        console.error('Create organization error:', error);
+        alert('Fehler beim Erstellen der Organisation: ' + error.message);
+    }
+}
+
+async function joinOrganization(event) {
+    event.preventDefault();
+    const code = document.getElementById('inviteCode').value.toUpperCase().trim();
+
+    try {
+        const codeDoc = await db.collection('inviteCodes').doc(code).get();
+
+        if (!codeDoc.exists) {
+            alert('Ungültiger Einladungscode!');
+            return;
+        }
+
+        const orgId = codeDoc.data().organizationId;
+
+        // Add user to organization
+        await db.collection('organizations').doc(orgId).update({
+            members: firebase.firestore.FieldValue.arrayUnion(currentFirebaseUser.uid)
+        });
+
+        // Update user document
+        await db.collection('users').doc(currentFirebaseUser.uid).set({
+            email: currentFirebaseUser.email,
+            displayName: currentFirebaseUser.displayName || currentFirebaseUser.email,
+            organizationId: orgId
+        });
+
+        // Load organization and data
+        await loadOrganization(orgId);
+        await loadFirestoreData();
+        showApp();
+
+    } catch (error) {
+        console.error('Join organization error:', error);
+        alert('Fehler beim Beitreten: ' + error.message);
+    }
+}
+
+async function loadOrganization(orgId) {
+    try {
+        const orgDoc = await db.collection('organizations').doc(orgId).get();
+        if (orgDoc.exists) {
+            currentOrganization = {
+                id: orgDoc.id,
+                ...orgDoc.data()
+            };
+        }
+    } catch (error) {
+        console.error('Load organization error:', error);
+    }
+}
+
+function generateInviteCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'ORG-';
+    for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+// ============================================
+// ORGANIZATION SETTINGS
+// ============================================
+
+async function showOrgSettings() {
+    try {
+        // Load invite code
+        const userDoc = await db.collection('users').doc(currentFirebaseUser.uid).get();
+        const inviteCode = userDoc.data().inviteCode;
+
+        // If no invite code, find it
+        let displayCode = inviteCode;
+        if (!displayCode) {
+            const codesSnapshot = await db.collection('inviteCodes')
+                .where('organizationId', '==', currentOrganization.id)
+                .limit(1)
+                .get();
+
+            if (!codesSnapshot.empty) {
+                displayCode = codesSnapshot.docs[0].id;
+            }
+        }
+
+        document.getElementById('orgSettingsName').textContent = currentOrganization.name;
+        document.getElementById('inviteCodeDisplay').textContent = displayCode || 'N/A';
+
+        // Load members
+        const membersList = document.getElementById('orgMembersList');
+        membersList.innerHTML = '';
+
+        for (const memberId of currentOrganization.members) {
+            const memberDoc = await db.collection('users').doc(memberId).get();
+            if (memberDoc.exists) {
+                const li = document.createElement('li');
+                li.textContent = memberDoc.data().displayName || memberDoc.data().email;
+                membersList.appendChild(li);
+            }
+        }
+
+        openModal('orgSettingsModal');
+    } catch (error) {
+        console.error('Show org settings error:', error);
+        alert('Fehler beim Laden der Einstellungen: ' + error.message);
+    }
+}
+
+function copyInviteCode() {
+    const code = document.getElementById('inviteCodeDisplay').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Einladungscode kopiert!');
+    });
+}
+
+// ============================================
+// FIRESTORE DATA OPERATIONS
+// ============================================
+
+async function loadFirestoreData() {
+    if (!currentOrganization) {
+        console.warn('loadFirestoreData: No organization set');
+        return;
+    }
+
+    try {
+        console.log('Loading data for organization:', currentOrganization.id);
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
+
+        // Load clients
+        const clientsSnapshot = await orgRef.collection('clients').get();
+        appData.clients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded clients:', appData.clients.length);
+
+        // Load projects
+        const projectsSnapshot = await orgRef.collection('projects').get();
+        appData.projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded projects:', appData.projects.length);
+
+        // Load time entries
+        const entriesSnapshot = await orgRef.collection('timeEntries').get();
+        appData.entries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Loaded entries:', appData.entries.length);
+
+        // Load users (deprecated - keeping for compatibility)
+        appData.users = [];
+
+        // Extract unique tags from entries
+        const tagsSet = new Set();
+        appData.entries.forEach(entry => {
+            if (entry.tags) {
+                const tags = typeof entry.tags === 'string'
+                    ? entry.tags.split(',')
+                    : entry.tags;
+                tags.forEach(tag => {
+                    const trimmed = typeof tag === 'string' ? tag.trim() : tag;
+                    if (trimmed) tagsSet.add(trimmed);
+                });
+            }
+        });
+        appData.tags = Array.from(tagsSet);
+
+        console.log('Data loaded successfully from Firestore');
+
+    } catch (error) {
+        console.error('Load Firestore data error:', error);
+        alert('Fehler beim Laden der Daten: ' + error.message);
+    }
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    initializeApp();
-    setupNavigation();
-    setDefaultDates();
+    // Auth state observer will handle initialization
+    console.log('App loaded, waiting for auth state...');
 });
 
 function initializeApp() {
+    console.log('Initializing app with data:', {
+        clients: appData.clients.length,
+        projects: appData.projects.length,
+        entries: appData.entries.length
+    });
+
     renderUsers();
     renderClients();
     renderProjects();
@@ -64,27 +382,18 @@ function initializeApp() {
     populateExportDropdowns();
     initCharts();
     updateCharts();
+
+    console.log('App initialization complete');
 }
 
+// Deprecated: Data is now loaded from Firestore via loadFirestoreData()
 function loadData() {
-    appData.users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-    appData.clients = JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS)) || [];
-    appData.projects = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)) || [];
-    appData.entries = JSON.parse(localStorage.getItem(STORAGE_KEYS.ENTRIES)) || [];
-    appData.tags = JSON.parse(localStorage.getItem(STORAGE_KEYS.TAGS)) || [];
-
-    const savedUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (savedUserId) {
-        currentUser = appData.users.find(u => u.id === savedUserId);
-    }
+    // No-op: Kept for backwards compatibility
 }
 
+// Deprecated: Data is now saved to Firestore automatically
 function saveData() {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(appData.users));
-    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(appData.clients));
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(appData.projects));
-    localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(appData.entries));
-    localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(appData.tags));
+    // No-op: Kept for backwards compatibility
 }
 
 function setDefaultDates() {
@@ -97,10 +406,91 @@ function setDefaultDates() {
     document.getElementById('filterStartDate').value = firstOfMonth.toISOString().split('T')[0];
     document.getElementById('filterEndDate').value = today;
 
+    // Set period dropdown to current month by default
+    document.getElementById('filterPeriod').value = 'current-month';
+
     // Export default: current month
     const monthInput = document.getElementById('customerPdfMonth');
     if (monthInput) {
         monthInput.value = today.substring(0, 7);
+    }
+
+    // Setup time input auto-formatting
+    setupTimeInputFormatting();
+}
+
+function handlePeriodChange() {
+    const period = document.getElementById('filterPeriod').value;
+    const today = new Date();
+    let startDate, endDate;
+
+    if (period === 'current-month') {
+        // Current month: from 1st to today
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = today;
+    } else if (period === 'last-month') {
+        // Last month: from 1st to last day of previous month
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else {
+        // Custom - don't change dates, let user set them manually
+        return;
+    }
+
+    document.getElementById('filterStartDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('filterEndDate').value = endDate.toISOString().split('T')[0];
+    updateCharts();
+}
+
+// Auto-format time inputs (12 → 12:00, 1245 → 12:45)
+function setupTimeInputFormatting() {
+    const timeInputs = [
+        'entryStartTime',
+        'entryEndTime',
+        'editEntryStartTime',
+        'editEntryEndTime'
+    ];
+
+    timeInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('blur', function() {
+                formatTimeInput(this);
+            });
+        }
+    });
+}
+
+function formatTimeInput(input) {
+    let value = input.value.replace(/[^0-9]/g, ''); // Remove non-digits
+
+    if (!value) return;
+
+    // Handle different input formats
+    if (value.length === 1 || value.length === 2) {
+        // "1" or "12" → "12:00"
+        value = value.padStart(2, '0') + ':00';
+    } else if (value.length === 3) {
+        // "123" → "01:23"
+        value = '0' + value[0] + ':' + value.substring(1);
+    } else if (value.length === 4) {
+        // "1245" → "12:45"
+        value = value.substring(0, 2) + ':' + value.substring(2);
+    } else if (value.length > 4) {
+        // Truncate to 4 digits
+        value = value.substring(0, 2) + ':' + value.substring(2, 4);
+    }
+
+    // Validate time
+    const parts = value.split(':');
+    const hours = parseInt(parts[0]);
+    const minutes = parseInt(parts[1]);
+
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        input.value = value;
+    } else {
+        input.value = ''; // Invalid time, clear it
+        alert('Ungültige Zeitangabe! Stunden: 0-23, Minuten: 0-59');
     }
 }
 
@@ -250,11 +640,11 @@ function renderClients() {
     filterSelect.innerHTML = clientOptionsAll;
 }
 
-function saveClient(event) {
+async function saveClient(event) {
     event.preventDefault();
 
+    const clientId = generateId();
     const client = {
-        id: generateId(),
         name: document.getElementById('clientName').value.trim(),
         contact: document.getElementById('clientContact').value.trim(),
         email: document.getElementById('clientEmail').value.trim(),
@@ -264,35 +654,65 @@ function saveClient(event) {
         createdAt: new Date().toISOString()
     };
 
-    appData.clients.push(client);
-    saveData();
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('clients').doc(clientId).set(client);
 
-    document.getElementById('clientForm').reset();
-    closeModal('clientModal');
+        // Update local state
+        appData.clients.push({ id: clientId, ...client });
 
-    renderClients();
-    populateExportDropdowns();
-    updateDashboardStats();
+        document.getElementById('clientForm').reset();
+        closeModal('clientModal');
+
+        renderClients();
+        populateExportDropdowns();
+        updateDashboardStats();
+    } catch (error) {
+        console.error('Save client error:', error);
+        alert('Fehler beim Speichern des Kunden: ' + error.message);
+    }
 }
 
-function deleteClient(clientId) {
+async function deleteClient(clientId) {
     if (!confirm('Möchtest du diesen Kunden wirklich löschen? Alle zugehörigen Projekte und Zeiteinträge werden ebenfalls gelöscht!')) {
         return;
     }
 
-    // Delete associated projects and entries
-    const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
-    appData.entries = appData.entries.filter(e => !projectIds.includes(e.projectId));
-    appData.projects = appData.projects.filter(p => p.clientId !== clientId);
-    appData.clients = appData.clients.filter(c => c.id !== clientId);
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
-    saveData();
-    renderClients();
-    renderProjects();
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateExportDropdowns();
+        // Delete associated projects and entries
+        const projectIds = appData.projects.filter(p => p.clientId === clientId).map(p => p.id);
+
+        // Delete entries
+        for (const entry of appData.entries.filter(e => projectIds.includes(e.projectId))) {
+            await orgRef.collection('timeEntries').doc(entry.id).delete();
+        }
+
+        // Delete projects
+        for (const projectId of projectIds) {
+            await orgRef.collection('projects').doc(projectId).delete();
+        }
+
+        // Delete client
+        await orgRef.collection('clients').doc(clientId).delete();
+
+        // Update local state
+        appData.entries = appData.entries.filter(e => !projectIds.includes(e.projectId));
+        appData.projects = appData.projects.filter(p => p.clientId !== clientId);
+        appData.clients = appData.clients.filter(c => c.id !== clientId);
+
+        renderClients();
+        renderProjects();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateExportDropdowns();
+    } catch (error) {
+        console.error('Delete client error:', error);
+        alert('Fehler beim Löschen des Kunden: ' + error.message);
+    }
 }
 
 function editClient(clientId) {
@@ -326,6 +746,10 @@ function renderProjects() {
             const budgetPercent = project.budgetHours ? Math.min(100, (totalHours / project.budgetHours) * 100) : 0;
             const budgetClass = budgetPercent > 90 ? 'danger' : budgetPercent > 75 ? 'warning' : '';
 
+            const effectiveRate = project.hourlyRate !== null && project.hourlyRate !== undefined
+                ? project.hourlyRate
+                : (client ? client.hourlyRate : 0);
+
             return `
                 <div class="card">
                     <div class="card-header">
@@ -339,6 +763,7 @@ function renderProjects() {
                         ${project.description ? `<p style="margin-bottom: var(--spacing-md);">${escapeHtml(project.description)}</p>` : ''}
                         <div class="card-meta">
                             <span>⏱️ ${formatHours(totalHours)} erfasst${project.budgetHours ? ` / ${formatHours(project.budgetHours)} Budget` : ''}</span>
+                            ${effectiveRate > 0 ? `<span>💰 ${effectiveRate.toFixed(2)}€/Std.${project.hourlyRate !== null && project.hourlyRate !== undefined ? ' (Projekt)' : ''}</span>` : ''}
                             ${project.deadline ? `<span>📅 Deadline: ${formatDate(project.deadline)}</span>` : ''}
                         </div>
                         ${project.budgetHours ? `
@@ -364,45 +789,71 @@ function renderProjects() {
         }).join('');
 }
 
-function saveProject(event) {
+async function saveProject(event) {
     event.preventDefault();
 
+    const projectId = generateId();
+    const hourlyRateValue = document.getElementById('projectHourlyRate').value;
     const project = {
-        id: generateId(),
         clientId: document.getElementById('projectClient').value,
         name: document.getElementById('projectName').value.trim(),
         description: document.getElementById('projectDescription').value.trim(),
         budgetHours: parseFloat(document.getElementById('projectBudgetHours').value) || 0,
+        hourlyRate: hourlyRateValue ? parseFloat(hourlyRateValue) : null,
         deadline: document.getElementById('projectDeadline').value,
         status: document.getElementById('projectStatus').value,
         createdAt: new Date().toISOString()
     };
 
-    appData.projects.push(project);
-    saveData();
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('projects').doc(projectId).set(project);
 
-    document.getElementById('projectForm').reset();
-    closeModal('projectModal');
+        // Update local state
+        appData.projects.push({ id: projectId, ...project });
 
-    renderProjects();
-    populateExportDropdowns();
-    updateDashboardStats();
+        document.getElementById('projectForm').reset();
+        closeModal('projectModal');
+
+        renderProjects();
+        populateExportDropdowns();
+        updateDashboardStats();
+    } catch (error) {
+        console.error('Save project error:', error);
+        alert('Fehler beim Speichern des Projekts: ' + error.message);
+    }
 }
 
-function deleteProject(projectId) {
+async function deleteProject(projectId) {
     if (!confirm('Möchtest du dieses Projekt wirklich löschen? Alle zugehörigen Zeiteinträge werden ebenfalls gelöscht!')) {
         return;
     }
 
-    appData.entries = appData.entries.filter(e => e.projectId !== projectId);
-    appData.projects = appData.projects.filter(p => p.id !== projectId);
+    try {
+        const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
-    saveData();
-    renderProjects();
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateExportDropdowns();
+        // Delete entries
+        for (const entry of appData.entries.filter(e => e.projectId === projectId)) {
+            await orgRef.collection('timeEntries').doc(entry.id).delete();
+        }
+
+        // Delete project
+        await orgRef.collection('projects').doc(projectId).delete();
+
+        // Update local state
+        appData.entries = appData.entries.filter(e => e.projectId !== projectId);
+        appData.projects = appData.projects.filter(p => p.id !== projectId);
+
+        renderProjects();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateExportDropdowns();
+    } catch (error) {
+        console.error('Delete project error:', error);
+        alert('Fehler beim Löschen des Projekts: ' + error.message);
+    }
 }
 
 function editProject(projectId) {
@@ -453,8 +904,8 @@ function toggleTimer() {
 }
 
 function startTimer() {
-    if (!currentUser) {
-        alert('Bitte wähle zuerst einen Benutzer aus!');
+    if (!currentFirebaseUser) {
+        alert('Bitte melde dich an!');
         return;
     }
 
@@ -507,11 +958,11 @@ function updateTimerDisplay() {
 // TIME ENTRIES
 // ============================================
 
-function saveTimeEntry(event) {
+async function saveTimeEntry(event) {
     event.preventDefault();
 
-    if (!currentUser) {
-        alert('Bitte wähle zuerst einen Benutzer aus!');
+    if (!currentFirebaseUser) {
+        alert('Bitte melde dich an!');
         return;
     }
 
@@ -520,7 +971,8 @@ function saveTimeEntry(event) {
     const endTime = document.getElementById('entryEndTime').value;
     const clientId = document.getElementById('entryClient').value;
     const projectId = document.getElementById('entryProject').value;
-    const tags = document.getElementById('entryTags').value
+    const tagsInput = document.getElementById('entryTags').value;
+    const tagsArray = tagsInput
         .split(',')
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
@@ -536,40 +988,49 @@ function saveTimeEntry(event) {
         return;
     }
 
+    const entryId = generateId();
     const entry = {
-        id: generateId(),
-        userId: currentUser.id,
+        userId: currentFirebaseUser.uid,
+        userName: currentFirebaseUser.displayName || currentFirebaseUser.email,
         clientId: clientId,
         projectId: projectId,
         date: date,
         startTime: startTime,
         endTime: endTime,
         duration: duration,
-        tags: tags,
+        tags: tagsInput,
         description: description,
         createdAt: new Date().toISOString()
     };
 
-    appData.entries.push(entry);
+    try {
+        // Save to Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).set(entry);
 
-    // Add new tags to global tags list
-    tags.forEach(tag => {
-        if (!appData.tags.includes(tag)) {
-            appData.tags.push(tag);
-        }
-    });
+        // Update local state
+        appData.entries.push({ id: entryId, ...entry });
 
-    saveData();
+        // Add new tags to global tags list
+        tagsArray.forEach(tag => {
+            if (!appData.tags.includes(tag)) {
+                appData.tags.push(tag);
+            }
+        });
 
-    // Reset form
-    document.getElementById('timeEntryForm').reset();
-    document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-    resetTimer();
+        // Reset form
+        document.getElementById('timeEntryForm').reset();
+        document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+        resetTimer();
 
-    renderTodayEntries();
-    updateDashboardStats();
-    updateCharts();
-    populateFilterDropdowns();
+        renderTodayEntries();
+        updateDashboardStats();
+        updateCharts();
+        populateFilterDropdowns();
+    } catch (error) {
+        console.error('Save time entry error:', error);
+        alert('Fehler beim Speichern des Zeiteintrags: ' + error.message);
+    }
 }
 
 function renderTodayEntries() {
@@ -578,10 +1039,7 @@ function renderTodayEntries() {
 
     let entries = appData.entries.filter(e => e.date === today);
 
-    // If user is selected, filter by user
-    if (currentUser) {
-        entries = entries.filter(e => e.userId === currentUser.id);
-    }
+    // Show all entries from organization (no user filter needed)
 
     if (entries.length === 0) {
         container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
@@ -593,18 +1051,18 @@ function renderTodayEntries() {
     container.innerHTML = entries.map(entry => {
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
 
         return `
             <div class="entry-card">
                 <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
                 <div class="entry-details">
                     <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
-                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} ${user ? `• ${escapeHtml(user.name)}` : ''}</div>
+                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} • ${escapeHtml(userName)}</div>
                     ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
-                    ${entry.tags.length > 0 ? `
+                    ${normalizeTags(entry.tags).length > 0 ? `
                         <div class="entry-tags">
-                            ${entry.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            ${normalizeTags(entry.tags).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -637,7 +1095,7 @@ function editEntry(entryId) {
     openModal('editEntryModal');
 }
 
-function updateTimeEntry(event) {
+async function updateTimeEntry(event) {
     event.preventDefault();
 
     const entryId = document.getElementById('editEntryId').value;
@@ -657,46 +1115,71 @@ function updateTimeEntry(event) {
         return;
     }
 
-    entry.date = date;
-    entry.startTime = startTime;
-    entry.endTime = endTime;
-    entry.duration = duration;
-    entry.clientId = document.getElementById('editEntryClient').value;
-    entry.projectId = document.getElementById('editEntryProject').value;
-    entry.tags = document.getElementById('editEntryTags').value
+    const tagsInput = document.getElementById('editEntryTags').value;
+    const tagsArray = tagsInput
         .split(',')
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
-    entry.description = document.getElementById('editEntryDescription').value.trim();
 
-    // Add new tags
-    entry.tags.forEach(tag => {
-        if (!appData.tags.includes(tag)) {
-            appData.tags.push(tag);
-        }
-    });
+    const updates = {
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        clientId: document.getElementById('editEntryClient').value,
+        projectId: document.getElementById('editEntryProject').value,
+        tags: tagsInput,
+        description: document.getElementById('editEntryDescription').value.trim()
+    };
 
-    saveData();
-    closeModal('editEntryModal');
+    try {
+        // Update in Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).update(updates);
 
-    renderTodayEntries();
-    renderProjects();
-    updateDashboardStats();
-    updateCharts();
+        // Update local state
+        Object.assign(entry, updates);
+
+        // Add new tags
+        tagsArray.forEach(tag => {
+            if (!appData.tags.includes(tag)) {
+                appData.tags.push(tag);
+            }
+        });
+
+        closeModal('editEntryModal');
+
+        renderTodayEntries();
+        renderProjects();
+        updateDashboardStats();
+        updateCharts();
+    } catch (error) {
+        console.error('Update time entry error:', error);
+        alert('Fehler beim Aktualisieren des Eintrags: ' + error.message);
+    }
 }
 
-function deleteEntry(entryId) {
+async function deleteEntry(entryId) {
     if (!confirm('Möchtest du diesen Eintrag wirklich löschen?')) {
         return;
     }
 
-    appData.entries = appData.entries.filter(e => e.id !== entryId);
-    saveData();
+    try {
+        // Delete from Firestore
+        await db.collection('organizations').doc(currentOrganization.id)
+            .collection('timeEntries').doc(entryId).delete();
 
-    renderTodayEntries();
-    renderProjects();
-    updateDashboardStats();
-    updateCharts();
+        // Update local state
+        appData.entries = appData.entries.filter(e => e.id !== entryId);
+
+        renderTodayEntries();
+        renderProjects();
+        updateDashboardStats();
+        updateCharts();
+    } catch (error) {
+        console.error('Delete entry error:', error);
+        alert('Fehler beim Löschen des Eintrags: ' + error.message);
+    }
 }
 
 // ============================================
@@ -709,17 +1192,11 @@ function updateDashboardStats() {
 
     // Today's hours
     let todayEntries = appData.entries.filter(e => e.date === today);
-    if (currentUser) {
-        todayEntries = todayEntries.filter(e => e.userId === currentUser.id);
-    }
     const todayHours = todayEntries.reduce((sum, e) => sum + e.duration, 0);
     document.getElementById('totalHoursToday').textContent = formatHours(todayHours);
 
     // Month's hours
     let monthEntries = appData.entries.filter(e => e.date.startsWith(currentMonth));
-    if (currentUser) {
-        monthEntries = monthEntries.filter(e => e.userId === currentUser.id);
-    }
     const monthHours = monthEntries.reduce((sum, e) => sum + e.duration, 0);
     document.getElementById('totalHoursMonth').textContent = formatHours(monthHours);
 
@@ -964,14 +1441,14 @@ function updateUserChart(entries) {
     const userHours = {};
 
     entries.forEach(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
-        const userName = user ? user.name : 'Unbekannt';
+        const userName = entry.userName || 'Unbekannt';
         userHours[userName] = (userHours[userName] || 0) + entry.duration;
     });
 
-    const userColors = Object.keys(userHours).map(name => {
-        const user = appData.users.find(u => u.name === name);
-        return user ? user.color : '#9B59B6';
+    // Generate colors for users dynamically
+    const userColors = Object.keys(userHours).map((name, index) => {
+        const colors = ['#9B59B6', '#3498DB', '#E74C3C', '#27AE60', '#F39C12', '#E67E22'];
+        return colors[index % colors.length];
     });
 
     charts.user.data.labels = Object.keys(userHours);
@@ -992,18 +1469,18 @@ function updateDetailTable(entries) {
     entries.sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
 
     tbody.innerHTML = entries.map(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
 
         return `
             <tr>
                 <td>${formatDate(entry.date)}</td>
-                <td>${user ? escapeHtml(user.name) : '-'}</td>
+                <td>${escapeHtml(userName)}</td>
                 <td>${client ? escapeHtml(client.name) : '-'}</td>
                 <td>${project ? escapeHtml(project.name) : '-'}</td>
                 <td>${escapeHtml(entry.description || '-')}</td>
-                <td>${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
+                <td>${normalizeTags(entry.tags).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join(' ')}</td>
                 <td>${formatHours(entry.duration)}</td>
                 <td class="actions">
                     <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
@@ -1074,13 +1551,13 @@ function exportCSV() {
     // Create CSV content
     const headers = ['Datum', 'Benutzer', 'Kunde', 'Projekt', 'Startzeit', 'Endzeit', 'Dauer (Std)', 'Beschreibung', 'Tags'];
     const rows = entries.map(entry => {
-        const user = appData.users.find(u => u.id === entry.userId);
+        const userName = entry.userName || 'Unbekannt';
         const project = appData.projects.find(p => p.id === entry.projectId);
         const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
 
         return [
             entry.date,
-            user ? user.name : '',
+            userName,
             client ? client.name : '',
             project ? project.name : '',
             entry.startTime,
@@ -1182,7 +1659,19 @@ function exportPDF(type) {
     // Summary
     const totalHours = entries.reduce((sum, e) => sum + e.duration, 0);
     const client = clientId ? appData.clients.find(c => c.id === clientId) : null;
-    const totalCost = client && client.hourlyRate ? totalHours * client.hourlyRate : 0;
+
+    // Calculate total cost considering project-specific hourly rates
+    const totalCost = entries.reduce((sum, entry) => {
+        const project = appData.projects.find(p => p.id === entry.projectId);
+        const entryClient = project ? appData.clients.find(c => c.id === project.clientId) : null;
+
+        // Use project hourly rate if available, otherwise use client hourly rate
+        const hourlyRate = (project && project.hourlyRate !== null && project.hourlyRate !== undefined)
+            ? project.hourlyRate
+            : (entryClient ? entryClient.hourlyRate || 0 : 0);
+
+        return sum + (entry.duration * hourlyRate);
+    }, 0);
 
     doc.setFontSize(12);
     doc.setTextColor(44, 62, 80);
@@ -1201,7 +1690,7 @@ function exportPDF(type) {
 
     if (includeDetails) {
         const tableData = entries.map(entry => {
-            const user = appData.users.find(u => u.id === entry.userId);
+            const userName = entry.userName || 'Unbekannt';
             const project = appData.projects.find(p => p.id === entry.projectId);
 
             if (type === 'customer') {
@@ -1214,7 +1703,7 @@ function exportPDF(type) {
             } else {
                 return [
                     formatDate(entry.date),
-                    user ? user.name : '-',
+                    userName,
                     project ? project.name : '-',
                     entry.description || '-',
                     formatHours(entry.duration)
@@ -1319,6 +1808,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Normalize tags: convert string to array or return empty array
+function normalizeTags(tags) {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags;
+    if (typeof tags === 'string') {
+        return tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+    }
+    return [];
 }
 
 function formatHours(hours) {
