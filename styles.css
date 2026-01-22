@@ -14,6 +14,7 @@
     /* Akzentfarben */
     --accent: #E74C3C;
     --accent-light: #F1948A;
+    --accent-lighter: #FADBD8;
 
     /* Neutrale Farben */
     --dark: #2C3E50;
@@ -69,6 +70,7 @@
     /* Akzentfarben */
     --accent: #F1948A;
     --accent-light: #FADBD8;
+    --accent-lighter: #7F4D4D;
 
     /* Neutrale Farben - invertiert */
     --dark: #ECF0F1;
@@ -546,6 +548,31 @@ a:hover {
 
 .entry-card:hover {
     background: var(--primary-lighter);
+}
+
+.day-separator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+.day-separator:first-child {
+    margin-top: 0;
+}
+
+.day-separator-line {
+    flex: 1;
+    height: 1px;
+    background: var(--gray-light);
+}
+
+.day-separator-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark);
+    white-space: nowrap;
+    text-transform: capitalize;
 }
 
 .entry-time {
@@ -1790,6 +1817,162 @@ a:hover {
     font-weight: 600;
     color: var(--primary-dark);
     margin-top: 4px;
+}
+
+/* === Week Calendar View === */
+.week-calendar-container {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.week-calendar-header {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    gap: 2px;
+    background: var(--primary-lighter);
+    padding: var(--spacing-sm);
+    border-bottom: 2px solid var(--primary);
+}
+
+.week-calendar-hours-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.week-calendar-day-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xs);
+    background: var(--white);
+    border-radius: var(--radius-sm);
+}
+
+.week-calendar-day-header.today {
+    background: var(--accent);
+    color: var(--white);
+}
+
+.week-day-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.week-calendar-day-header.today .week-day-name {
+    color: var(--white);
+}
+
+.week-day-date {
+    font-size: 0.7rem;
+    color: var(--gray);
+    margin-top: 2px;
+}
+
+.week-calendar-day-header.today .week-day-date {
+    color: var(--white);
+    opacity: 0.9;
+}
+
+.week-calendar-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    gap: 2px;
+    min-height: 600px;
+    background: var(--gray-lighter);
+}
+
+.week-calendar-hours {
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border-right: 2px solid var(--gray-lighter);
+}
+
+.week-calendar-hour {
+    flex: 1;
+    display: flex;
+    align-items: start;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--gray);
+    font-weight: 600;
+    padding-top: 2px;
+}
+
+.week-calendar-day {
+    position: relative;
+    background: var(--white);
+    background-image: repeating-linear-gradient(
+        to bottom,
+        var(--gray-lighter) 0px,
+        var(--gray-lighter) 1px,
+        transparent 1px,
+        transparent calc(100% / 17)
+    );
+}
+
+.week-calendar-day.today {
+    background-color: var(--accent-lighter);
+}
+
+.week-calendar-entry {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    background: var(--primary-lighter);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius-sm);
+    padding: 4px 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.65rem;
+}
+
+.week-calendar-entry:hover {
+    background: var(--primary-light);
+    transform: scale(1.02);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+}
+
+.week-entry-time {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 2px;
+}
+
+.week-entry-project {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.week-entry-client {
+    font-size: 0.65rem;
+    color: var(--gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.week-entry-duration {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--primary-dark);
 }
 
 /* === Month Calendar View === */

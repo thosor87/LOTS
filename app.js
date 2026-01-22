@@ -1638,47 +1638,92 @@ async function saveTimeEntry(event) {
 
 function renderTodayEntries() {
     const container = document.getElementById('todayEntries');
-    const today = new Date().toISOString().split('T')[0];
 
-    let entries = appData.entries.filter(e => e.date === today);
+    // Get Monday and Sunday of current week
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days, otherwise go to Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
 
-    // Show all entries from organization (no user filter needed)
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const mondayStr = monday.toISOString().split('T')[0];
+    const sundayStr = sunday.toISOString().split('T')[0];
+
+    // Filter entries for current week
+    let entries = appData.entries.filter(e => e.date >= mondayStr && e.date <= sundayStr);
 
     if (entries.length === 0) {
-        container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
+        container.innerHTML = '<p class="empty-state">Noch keine Einträge für diese Woche ✦</p>';
         return;
     }
 
-    // Sort by start time descending (newest first)
-    entries.sort((a, b) => b.startTime.localeCompare(a.startTime));
+    // Group entries by date
+    const entriesByDate = {};
+    entries.forEach(entry => {
+        if (!entriesByDate[entry.date]) {
+            entriesByDate[entry.date] = [];
+        }
+        entriesByDate[entry.date].push(entry);
+    });
 
-    container.innerHTML = entries.map(entry => {
-        const project = appData.projects.find(p => p.id === entry.projectId);
-        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
-        const userName = entry.userName || 'Unbekannt';
-        const bgColor = getUserBackgroundColor(entry.userId);
+    // Sort dates
+    const sortedDates = Object.keys(entriesByDate).sort((a, b) => b.localeCompare(a)); // Newest first
 
-        return `
-            <div class="entry-card" style="background-color: ${bgColor};">
-                <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
-                <div class="entry-details">
-                    <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
-                    <div class="entry-client">${client ? escapeHtml(client.name) : ''} • ${escapeHtml(userName)}</div>
-                    ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
-                    ${normalizeTags(entry.tags).length > 0 ? `
-                        <div class="entry-tags">
-                            ${normalizeTags(entry.tags).map(tag => `<span class="tag" onclick="filterByTag('${escapeHtml(tag)}')" style="cursor: pointer;">${escapeHtml(tag)}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="entry-duration">${formatHours(entry.duration)}</div>
-                <div class="entry-actions">
-                    <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
-                    <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
-                </div>
+    // Build HTML with day separators
+    let html = '';
+    sortedDates.forEach((date, index) => {
+        const dateObj = new Date(date + 'T00:00:00');
+        const dayName = dateObj.toLocaleDateString('de-DE', { weekday: 'long' });
+        const formattedDate = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // Add day separator
+        html += `
+            <div class="day-separator">
+                <div class="day-separator-line"></div>
+                <div class="day-separator-text">${dayName}, ${formattedDate}</div>
+                <div class="day-separator-line"></div>
             </div>
         `;
-    }).join('');
+
+        // Sort entries for this day by start time (newest first)
+        entriesByDate[date].sort((a, b) => b.startTime.localeCompare(a.startTime));
+
+        // Add entries for this day
+        entriesByDate[date].forEach(entry => {
+            const project = appData.projects.find(p => p.id === entry.projectId);
+            const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+            const userName = entry.userName || 'Unbekannt';
+            const bgColor = getUserBackgroundColor(entry.userId);
+
+            html += `
+                <div class="entry-card" style="background-color: ${bgColor};">
+                    <div class="entry-time">${entry.startTime} - ${entry.endTime}</div>
+                    <div class="entry-details">
+                        <div class="entry-project">${project ? escapeHtml(project.name) : 'Unbekanntes Projekt'}</div>
+                        <div class="entry-client">${client ? escapeHtml(client.name) : ''} • ${escapeHtml(userName)}</div>
+                        ${entry.description ? `<div class="entry-description">${escapeHtml(entry.description)}</div>` : ''}
+                        ${normalizeTags(entry.tags).length > 0 ? `
+                            <div class="entry-tags">
+                                ${normalizeTags(entry.tags).map(tag => `<span class="tag" onclick="filterByTag('${escapeHtml(tag)}')" style="cursor: pointer;">${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="entry-duration">${formatHours(entry.duration)}</div>
+                    <div class="entry-actions">
+                        <button class="btn btn-small btn-secondary" onclick="editEntry('${entry.id}')">✎</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteEntry('${entry.id}')">×</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    container.innerHTML = html;
 }
 
 function renderRecentProjects() {
@@ -2771,46 +2816,93 @@ function switchTodayView(view) {
 
 function renderTodayCalendar() {
     const container = document.getElementById('todayCalendar');
-    const today = new Date().toISOString().split('T')[0];
-    let entries = appData.entries.filter(e => e.date === today);
+
+    // Get Monday and Sunday of current week
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const mondayStr = monday.toISOString().split('T')[0];
+    const sundayStr = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Filter entries for current week
+    let entries = appData.entries.filter(e => e.date >= mondayStr && e.date <= sundayStr);
 
     if (entries.length === 0) {
-        container.innerHTML = '<p class="empty-state">Noch keine Einträge für heute ✦</p>';
+        container.innerHTML = '<p class="empty-state">Noch keine Einträge für diese Woche ✦</p>';
         return;
     }
 
-    // Sort by start time
-    entries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    // Generate week calendar with 7 columns
+    let html = '<div class="week-calendar-container">';
 
-    // Generate timeline (6:00 - 22:00)
-    let html = '<div class="timeline-container">';
-    html += '<div class="timeline-hours">';
-    for (let h = 6; h <= 22; h++) {
-        html += '<div class="timeline-hour">' + String(h).padStart(2, '0') + ':00</div>';
+    // Add header with day names
+    html += '<div class="week-calendar-header">';
+    html += '<div class="week-calendar-hours-header">Zeit</div>';
+    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(monday);
+        dayDate.setDate(monday.getDate() + i);
+        const dayStr = dayDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+        const isToday = dayDate.toISOString().split('T')[0] === now.toISOString().split('T')[0];
+        html += '<div class="week-calendar-day-header' + (isToday ? ' today' : '') + '">';
+        html += '<div class="week-day-name">' + dayNames[i] + '</div>';
+        html += '<div class="week-day-date">' + dayStr + '</div>';
+        html += '</div>';
     }
     html += '</div>';
-    html += '<div class="timeline-entries">';
 
-    entries.forEach(entry => {
-        const project = appData.projects.find(p => p.id === entry.projectId);
-        const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
-        const bgColor = getUserBackgroundColor(entry.userId);
+    // Add timeline grid
+    html += '<div class="week-calendar-grid">';
 
-        // Calculate position and height
-        const [startH, startM] = entry.startTime.split(':').map(Number);
-        const [endH, endM] = entry.endTime.split(':').map(Number);
-        const startMinutes = startH * 60 + startM;
-        const endMinutes = endH * 60 + endM;
-        const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100; // 6:00 - 22:00 = 16 hours
-        const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+    // Hours column
+    html += '<div class="week-calendar-hours">';
+    for (let h = 6; h <= 22; h++) {
+        html += '<div class="week-calendar-hour">' + String(h).padStart(2, '0') + ':00</div>';
+    }
+    html += '</div>';
 
-        html += '<div class="timeline-entry" style="top: ' + top + '%; height: ' + height + '%; background-color: ' + bgColor + ';">';
-        html += '<div class="timeline-entry-time">' + entry.startTime + ' - ' + entry.endTime + '</div>';
-        html += '<div class="timeline-entry-project">' + (project ? escapeHtml(project.name) : 'Unbekannt') + '</div>';
-        html += '<div class="timeline-entry-client">' + (client ? escapeHtml(client.name) : '') + '</div>';
-        html += '<div class="timeline-entry-duration">' + formatHours(entry.duration) + '</div>';
+    // Day columns with entries
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(monday);
+        dayDate.setDate(monday.getDate() + i);
+        const dayStr = dayDate.toISOString().split('T')[0];
+        const isToday = dayStr === now.toISOString().split('T')[0];
+
+        html += '<div class="week-calendar-day' + (isToday ? ' today' : '') + '">';
+
+        // Filter entries for this day and sort by start time
+        const dayEntries = entries.filter(e => e.date === dayStr);
+        dayEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        dayEntries.forEach(entry => {
+            const project = appData.projects.find(p => p.id === entry.projectId);
+            const client = project ? appData.clients.find(c => c.id === project.clientId) : null;
+            const bgColor = getUserBackgroundColor(entry.userId);
+
+            // Calculate position and height
+            const [startH, startM] = entry.startTime.split(':').map(Number);
+            const [endH, endM] = entry.endTime.split(':').map(Number);
+            const startMinutes = startH * 60 + startM;
+            const endMinutes = endH * 60 + endM;
+            const top = ((startMinutes - 6 * 60) / (16 * 60)) * 100; // 6:00 - 22:00 = 16 hours
+            const height = ((endMinutes - startMinutes) / (16 * 60)) * 100;
+
+            html += '<div class="week-calendar-entry" style="top: ' + top + '%; height: ' + height + '%; background-color: ' + bgColor + ';">';
+            html += '<div class="week-entry-time">' + entry.startTime + ' - ' + entry.endTime + '</div>';
+            html += '<div class="week-entry-project">' + (project ? escapeHtml(project.name) : 'Unbekannt') + '</div>';
+            if (client) {
+                html += '<div class="week-entry-client">' + escapeHtml(client.name) + '</div>';
+            }
+            html += '<div class="week-entry-duration">' + formatHours(entry.duration) + '</div>';
+            html += '</div>';
+        });
+
         html += '</div>';
-    });
+    }
 
     html += '</div></div>';
     container.innerHTML = html;
