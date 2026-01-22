@@ -3173,10 +3173,6 @@ class TagsInputManager {
             event.stopPropagation();
         }
 
-        if (!confirm(`Tag "${tagName}" wirklich löschen?`)) {
-            return;
-        }
-
         // Remove from global tags
         appData.tags = appData.tags.filter(t => t !== tagName);
         saveData();
