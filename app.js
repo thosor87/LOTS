@@ -1477,11 +1477,18 @@ function stopTimer() {
     document.getElementById('startStopBtn').classList.add('btn-primary');
     document.getElementById('startStopBtn').classList.remove('btn-accent');
 
-    // Auto-fill time fields
+    // Auto-fill time fields with calculated duration and times
     if (timerStartTime && timerSeconds > 0) {
         const endTime = new Date();
-        document.getElementById('entryStartTime').value = formatTimeForInput(timerStartTime);
+        const durationHours = timerSeconds / 3600;
+
+        // Set end time to now and calculated duration
         document.getElementById('entryEndTime').value = formatTimeForInput(endTime);
+        document.getElementById('entryDuration').value = Math.round(durationHours * 100) / 100;
+
+        // Calculate and set start time from end time - duration
+        const startTime = new Date(endTime.getTime() - (timerSeconds * 1000));
+        document.getElementById('entryStartTime').value = formatTimeForInput(startTime);
     }
 }
 
@@ -1748,15 +1755,30 @@ function quickStartProject(projectId) {
     const project = appData.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    // Set current date and time
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().slice(0, 5);
+    // Set current date if empty
+    const entryDate = document.getElementById('entryDate');
+    if (!entryDate.value) {
+        const today = new Date().toISOString().split('T')[0];
+        entryDate.value = today;
+    }
 
-    // Fill form
-    document.getElementById('entryDate').value = today;
-    document.getElementById('entryStartTime').value = ''; // User fills this in
-    document.getElementById('entryEndTime').value = currentTime;
+    // Don't override time fields if they're already filled (e.g., from timer)
+    // Only set end time to now if all time fields are empty
+    const startTimeField = document.getElementById('entryStartTime');
+    const endTimeField = document.getElementById('entryEndTime');
+    const durationField = document.getElementById('entryDuration');
+
+    const hasTimeData = startTimeField.value || endTimeField.value || durationField.value;
+
+    if (!hasTimeData) {
+        const currentTime = new Date().toTimeString().slice(0, 5);
+        endTimeField.value = currentTime;
+        showNotification('Projekt vorausgewählt - bitte Startzeit oder Dauer eintragen', 'info');
+    } else {
+        showNotification('Projekt vorausgewählt', 'info');
+    }
+
+    // Set client and project
     document.getElementById('entryClient').value = project.clientId;
 
     // Load projects for client, then select project
@@ -1765,10 +1787,10 @@ function quickStartProject(projectId) {
         document.getElementById('entryProject').value = projectId;
     }, 100);
 
-    // Focus on start time
-    document.getElementById('entryStartTime').focus();
-
-    showNotification('Projekt vorausgewählt - bitte Startzeit eintragen', 'info');
+    // Focus on appropriate field
+    if (!hasTimeData) {
+        startTimeField.focus();
+    }
 }
 
 function editEntry(entryId) {
