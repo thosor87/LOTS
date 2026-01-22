@@ -2905,3 +2905,46 @@ a:hover {
         padding: 0.75rem;
     }
 }
+
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+
+[data-theme="dark"] .tag,
+[data-theme="dark"] .tag-pill {
+    background: var(--primary);
+    color: var(--white);
+}
+
+[data-theme="dark"] .tag-pill:hover {
+    background: var(--primary-light);
+}
+
+[data-theme="dark"] .tags-dropdown-item-tag {
+    background: var(--primary);
+    color: var(--white);
+}
+
+[data-theme="dark"] .tags-dropdown-item.new .tags-dropdown-item-tag {
+    background: #2e7d32;
+    color: var(--white);
+}
+
+[data-theme="dark"] .btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+[data-theme="dark"] .btn-secondary {
+    background: var(--gray-lighter);
+    color: var(--white);
+}
+
+[data-theme="dark"] .nav-link {
+    color: var(--dark);
+}
+
+[data-theme="dark"] .nav-link:hover,
+[data-theme="dark"] .nav-link.active {
+    color: var(--primary-light);
+}
