@@ -2913,7 +2913,7 @@ a:hover {
 [data-theme="dark"] .tag,
 [data-theme="dark"] .tag-pill {
     background: var(--primary);
-    color: var(--white);
+    color: #FFFFFF !important;
 }
 
 [data-theme="dark"] .tag-pill:hover {
@@ -2922,29 +2922,29 @@ a:hover {
 
 [data-theme="dark"] .tags-dropdown-item-tag {
     background: var(--primary);
-    color: var(--white);
+    color: #FFFFFF !important;
 }
 
 [data-theme="dark"] .tags-dropdown-item.new .tags-dropdown-item-tag {
     background: #2e7d32;
-    color: var(--white);
+    color: #FFFFFF !important;
 }
 
 [data-theme="dark"] .btn-primary {
     background: var(--primary);
-    color: var(--white);
+    color: #FFFFFF !important;
 }
 
 [data-theme="dark"] .btn-secondary {
     background: var(--gray-lighter);
-    color: var(--white);
+    color: #FFFFFF !important;
 }
 
 [data-theme="dark"] .nav-link {
-    color: var(--dark);
+    color: var(--dark) !important;
 }
 
 [data-theme="dark"] .nav-link:hover,
 [data-theme="dark"] .nav-link.active {
-    color: var(--primary-light);
+    color: var(--primary-light) !important;
 }
