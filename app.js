@@ -21,10 +21,10 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Configure Firestore to handle blocked WebChannel connections
-// This enables auto-detection of long-polling when WebChannel is blocked by ad blockers
+// Force long-polling to prevent ERR_BLOCKED_BY_CLIENT errors
+// WebChannel connections are blocked by ad blockers, so we bypass them entirely
 db.settings({
-    experimentalAutoDetectLongPolling: true
+    experimentalForceLongPolling: true
 });
 
 // Current user and organization
