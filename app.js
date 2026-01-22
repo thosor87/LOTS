@@ -1519,11 +1519,7 @@ async function saveTimeEntry(event) {
     const durationInput = document.getElementById('entryDuration').value;
     const clientId = document.getElementById('entryClient').value;
     const projectId = document.getElementById('entryProject').value;
-    const tagsInput = document.getElementById('entryTags').value;
-    const tagsArray = tagsInput
-        .split(',')
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length > 0);
+    const tagsArray = window.tagsManagers['entryTags'] ? window.tagsManagers['entryTags'].getTags() : [];
     const description = document.getElementById('entryDescription').value.trim();
 
     // Validate that at least 2 of 3 fields are filled (start, end, duration)
@@ -1607,6 +1603,9 @@ async function saveTimeEntry(event) {
         // Reset form
         document.getElementById('timeEntryForm').reset();
         document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+        if (window.tagsManagers['entryTags']) {
+            window.tagsManagers['entryTags'].clear();
+        }
         resetTimer();
 
         renderTodayEntries();
@@ -1786,7 +1785,9 @@ function editEntry(entryId) {
     setTimeout(() => {
         document.getElementById('editEntryProject').value = entry.projectId;
     }, 100);
-    document.getElementById('editEntryTags').value = normalizeTags(entry.tags).join(', ');
+    if (window.tagsManagers['editEntryTags']) {
+        window.tagsManagers['editEntryTags'].setTags(normalizeTags(entry.tags));
+    }
     document.getElementById('editEntryDescription').value = entry.description;
 
     openModal('editEntryModal');
@@ -1819,11 +1820,7 @@ async function updateTimeEntry(event) {
         return;
     }
 
-    const tagsInput = document.getElementById('editEntryTags').value;
-    const tagsArray = tagsInput
-        .split(',')
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length > 0);
+    const tagsArray = window.tagsManagers['editEntryTags'] ? window.tagsManagers['editEntryTags'].getTags() : [];
 
     const projectId = document.getElementById('editEntryProject').value;
 
@@ -2280,12 +2277,24 @@ function populateFilterDropdowns() {
 }
 
 function populateTagsSuggestions() {
-    const datalist = document.getElementById('tagsSuggestions');
-    if (!datalist) return;
+    // Initialize Tags Input Managers for both entry and edit forms
+    if (!window.tagsManagers['entryTags']) {
+        window.tagsManagers['entryTags'] = new TagsInputManager(
+            'entryTagsWrapper',
+            'entryTags',
+            'entryTagsSelected',
+            'entryTagsDropdown'
+        );
+    }
 
-    datalist.innerHTML = appData.tags
-        .map(tag => `<option value="${escapeHtml(tag)}">`)
-        .join('');
+    if (!window.tagsManagers['editEntryTags']) {
+        window.tagsManagers['editEntryTags'] = new TagsInputManager(
+            'editEntryTagsWrapper',
+            'editEntryTags',
+            'editEntryTagsSelected',
+            'editEntryTagsDropdown'
+        );
+    }
 }
 
 function populateExportDropdowns() {
@@ -3054,3 +3063,201 @@ function renderDetailWeekView() {
     html += '</div>';
     container.innerHTML = html;
 }
+
+// ============================================
+// Tags Input Manager - Modern Multi-Select Dropdown
+// ============================================
+
+class TagsInputManager {
+    constructor(wrapperId, inputId, selectedId, dropdownId) {
+        this.wrapper = document.getElementById(wrapperId);
+        this.input = document.getElementById(inputId);
+        this.selectedContainer = document.getElementById(selectedId);
+        this.dropdown = document.getElementById(dropdownId);
+
+        if (!this.wrapper || !this.input || !this.selectedContainer || !this.dropdown) {
+            console.warn('TagsInputManager: Required elements not found');
+            return;
+        }
+
+        this.selectedTags = [];
+        this.activeIndex = -1;
+        this.allTags = [];
+
+        this.init();
+    }
+
+    init() {
+        // Click on wrapper focuses input
+        this.wrapper.addEventListener('click', (e) => {
+            if (e.target === this.wrapper || e.target === this.selectedContainer) {
+                this.input.focus();
+            }
+        });
+
+        // Input events
+        this.input.addEventListener('input', () => this.handleInput());
+        this.input.addEventListener('focus', () => this.handleInput());
+        this.input.addEventListener('blur', () => {
+            // Delay to allow click on dropdown
+            setTimeout(() => this.hideDropdown(), 200);
+        });
+
+        // Keyboard navigation
+        this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+            if (!this.wrapper.contains(e.target)) {
+                this.hideDropdown();
+            }
+        });
+    }
+
+    handleInput() {
+        const query = this.input.value.trim().toLowerCase();
+        this.showSuggestions(query);
+    }
+
+    handleKeydown(e) {
+        const items = this.dropdown.querySelectorAll('.tags-dropdown-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.activeIndex = Math.min(this.activeIndex + 1, items.length - 1);
+            this.updateActiveItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.activeIndex = Math.max(this.activeIndex - 1, -1);
+            this.updateActiveItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (this.activeIndex >= 0 && items[this.activeIndex]) {
+                const tagName = items[this.activeIndex].dataset.tag;
+                this.addTag(tagName);
+            } else if (this.input.value.trim()) {
+                // Add new tag
+                this.addTag(this.input.value.trim().toLowerCase());
+            }
+        } else if (e.key === 'Escape') {
+            this.hideDropdown();
+            this.input.blur();
+        } else if (e.key === 'Backspace' && !this.input.value) {
+            // Remove last tag if input is empty
+            if (this.selectedTags.length > 0) {
+                this.removeTag(this.selectedTags[this.selectedTags.length - 1]);
+            }
+        }
+    }
+
+    updateActiveItem(items) {
+        items.forEach((item, index) => {
+            if (index === this.activeIndex) {
+                item.classList.add('active');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    showSuggestions(query) {
+        this.allTags = appData.tags || [];
+        const filtered = this.allTags.filter(tag =>
+            tag.toLowerCase().includes(query) &&
+            !this.selectedTags.includes(tag)
+        );
+
+        let html = '';
+
+        // Show existing matching tags
+        filtered.forEach(tag => {
+            html += `
+                <div class="tags-dropdown-item" data-tag="${escapeHtml(tag)}" onclick="tagsManagers['${this.input.id}'].addTag('${escapeHtml(tag)}')">
+                    <span class="tags-dropdown-item-tag">${escapeHtml(tag)}</span>
+                </div>
+            `;
+        });
+
+        // Show "Create new tag" option if query doesn't match exactly
+        if (query && !this.allTags.includes(query) && !this.selectedTags.includes(query)) {
+            html += `
+                <div class="tags-dropdown-item new" data-tag="${escapeHtml(query)}" onclick="tagsManagers['${this.input.id}'].addTag('${escapeHtml(query)}')">
+                    <span class="tags-dropdown-item-tag">${escapeHtml(query)}</span>
+                    <span class="tags-dropdown-item-badge">+ Neu erstellen</span>
+                </div>
+            `;
+        }
+
+        if (!html) {
+            if (query) {
+                html = '<div class="tags-dropdown-empty">Keine Vorschläge gefunden</div>';
+            } else if (filtered.length === 0 && this.selectedTags.length === this.allTags.length) {
+                html = '<div class="tags-dropdown-empty">Alle Tags ausgewählt</div>';
+            } else {
+                html = '<div class="tags-dropdown-empty">Beginne zu tippen...</div>';
+            }
+        }
+
+        this.dropdown.innerHTML = html;
+        this.dropdown.classList.add('show');
+        this.activeIndex = -1;
+    }
+
+    hideDropdown() {
+        this.dropdown.classList.remove('show');
+        this.activeIndex = -1;
+    }
+
+    addTag(tagName) {
+        tagName = tagName.trim().toLowerCase();
+        if (!tagName || this.selectedTags.includes(tagName)) return;
+
+        this.selectedTags.push(tagName);
+        this.renderSelectedTags();
+        this.input.value = '';
+        this.input.focus();
+        this.showSuggestions('');
+
+        // Add to global tags if new
+        if (!appData.tags.includes(tagName)) {
+            appData.tags.push(tagName);
+            appData.tags.sort();
+        }
+    }
+
+    removeTag(tagName) {
+        this.selectedTags = this.selectedTags.filter(t => t !== tagName);
+        this.renderSelectedTags();
+        this.input.focus();
+        this.showSuggestions(this.input.value.trim().toLowerCase());
+    }
+
+    renderSelectedTags() {
+        this.selectedContainer.innerHTML = this.selectedTags.map(tag => `
+            <span class="tag-pill">
+                ${escapeHtml(tag)}
+                <span class="tag-pill-remove" onclick="tagsManagers['${this.input.id}'].removeTag('${escapeHtml(tag)}')">×</span>
+            </span>
+        `).join('');
+    }
+
+    setTags(tags) {
+        this.selectedTags = Array.isArray(tags) ? tags :
+            (typeof tags === 'string' ? tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : []);
+        this.renderSelectedTags();
+    }
+
+    getTags() {
+        return this.selectedTags;
+    }
+
+    clear() {
+        this.selectedTags = [];
+        this.renderSelectedTags();
+        this.input.value = '';
+    }
+}
+
+// Global registry for tags managers
+window.tagsManagers = {};

@@ -212,9 +212,12 @@
                             </div>
                             <div class="form-group">
                                 <label for="entryTags">Tags (Stichworte)</label>
-                                <input type="text" id="entryTags" list="tagsSuggestions" placeholder="z.B. meeting, design, review">
-                                <datalist id="tagsSuggestions"></datalist>
-                                <small>Kommagetrennte Stichworte</small>
+                                <div class="tags-input-wrapper" id="entryTagsWrapper">
+                                    <div class="tags-selected" id="entryTagsSelected"></div>
+                                    <input type="text" id="entryTags" class="tags-input" placeholder="Tag hinzufügen..." autocomplete="off">
+                                    <div class="tags-dropdown" id="entryTagsDropdown"></div>
+                                </div>
+                                <small>Wähle Tags aus oder erstelle neue</small>
                             </div>
                             <div class="form-group full-width">
                                 <label for="entryDescription">Beschreibung</label>
@@ -686,7 +689,11 @@
                     </div>
                     <div class="form-group">
                         <label for="editEntryTags">Tags</label>
-                        <input type="text" id="editEntryTags" list="tagsSuggestions" placeholder="z.B. meeting, design">
+                        <div class="tags-input-wrapper" id="editEntryTagsWrapper">
+                            <div class="tags-selected" id="editEntryTagsSelected"></div>
+                            <input type="text" id="editEntryTags" class="tags-input" placeholder="Tag hinzufügen..." autocomplete="off">
+                            <div class="tags-dropdown" id="editEntryTagsDropdown"></div>
+                        </div>
                     </div>
                     <div class="form-group full-width">
                         <label for="editEntryDescription">Beschreibung</label>
