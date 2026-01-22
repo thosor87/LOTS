@@ -621,17 +621,17 @@ a:hover {
 /* Tags Input Dropdown System */
 .tags-input-wrapper {
     position: relative;
-    min-height: 42px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 6px;
+    min-height: 38px;
+    border: 1px solid var(--gray-light);
+    border-radius: var(--radius-md);
+    padding: 4px 8px;
     background: white;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     align-items: center;
     cursor: text;
-    transition: border-color 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .tags-input-wrapper:focus-within {
@@ -760,6 +760,28 @@ a:hover {
 .tags-dropdown-item.new .tags-dropdown-item-badge {
     background: #e8f5e9;
     color: #2e7d32;
+}
+
+.tags-dropdown-item-delete {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #ffebee;
+    color: #c62828;
+    border-radius: 50%;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.tags-dropdown-item-delete:hover {
+    background: #ffcdd2;
+    transform: scale(1.1);
 }
 
 .tags-dropdown-empty {
