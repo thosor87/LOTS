@@ -8,10 +8,10 @@ Eine moderne, cloudbasierte Zeiterfassungs-App für Teams und Freelancer mit int
 📊 **Interaktive Charts** - Klickbare Diagramme mit automatischer Filterung
 🎨 **Dark Mode** - Dunkles Design für angenehmeres Arbeiten
 📅 **Kalender-Ansichten** - Timeline und Monatsübersicht für besseren Überblick
-🏷️ **Smart Tags** - Autocomplete für wiederkehrende Stichwörter
+🏷️ **Smart Tags** - Modernes Multi-Select mit Tastaturnavigation und Tag-Management
 💰 **Kostenaufstellung** - Automatische Berechnung mit Stundensätzen
 👥 **Multi-User** - Team-Zusammenarbeit mit individuellen Farben
-☁️ **Cloud-Sync** - Echtzeit-Synchronisation über Firebase
+☁️ **Cloud-Sync** - Echtzeit-Synchronisation über Firebase mit Ad-Blocker-Kompatibilität
 
 ## Funktionen
 
@@ -21,7 +21,11 @@ Eine moderne, cloudbasierte Zeiterfassungs-App für Teams und Freelancer mit int
 - **Manuelle Eingabe**: Erfasse Zeiten auch nachträglich mit intelligentem Formular
 - **Auto-Formatierung**: Zeiteingaben werden automatisch formatiert (z.B. 1245 → 12:45)
 - **Projektbasiert**: Erfasse Zeit für spezifische Kunden und Projekte
-- **Tags/Stichwörter**: Kategorisiere Einträge mit Tags und Autocomplete-Funktion
+- **Smart Tags/Stichwörter**: Modernes Multi-Select-Interface für Tags
+  - Autocomplete-Dropdown mit Tastaturnavigation
+  - Mehrfachauswahl mit visuellen Chips
+  - Löschen von ungenutzten Tags direkt im Dropdown
+  - Backspace zum Entfernen des letzten Tags
 - **Kompakte Ansicht**: Timer, Quick Access und heutige Einträge in einer übersichtlichen Sektion
 - **Bearbeiten & Löschen**: Nachträgliche Bearbeitung aller Zeiteinträge möglich
 - **Toast-Benachrichtigungen**: Sofortiges Feedback zu allen Aktionen
@@ -76,6 +80,7 @@ Eine moderne, cloudbasierte Zeiterfassungs-App für Teams und Freelancer mit int
 - **Echtzeit-Synchronisation**: Änderungen sind sofort für alle Team-Mitglieder sichtbar
 - **Google Sign-In**: Sichere Authentifizierung
 - **Offline-fähig**: Arbeitet auch bei Verbindungsproblemen
+- **Ad-Blocker-Kompatibilität**: Optimierte Verbindung mit Long-Polling für maximale Kompatibilität
 
 ### Design & UX
 - **Modern & Minimalistisch**: Klares, aufgeräumtes Interface
@@ -85,6 +90,7 @@ Eine moderne, cloudbasierte Zeiterfassungs-App für Teams und Freelancer mit int
 - **Live-Feedback**: Toast-Benachrichtigungen für alle Aktionen
 - **Kompakte Layouts**: Optimierte Raumnutzung mit Grid-basierten Layouts
 - **Farbcodierung**: Visuelle Unterscheidung durch Benutzer-Farben
+- **Tastaturnavigation**: Vollständige Tastatursteuerung für Tag-Eingaben und Dropdowns
 
 ## Tech Stack
 
