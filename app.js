@@ -165,12 +165,9 @@ initDarkMode();
 
 // Auth State Observer
 auth.onAuthStateChanged(async (user) => {
-    console.log('Auth state changed:', user ? user.email : 'logged out', 'DOM ready:', domReady);
-
     if (!domReady) {
         // Store user and wait for DOM to be ready
         pendingAuthUser = user;
-        console.log('DOM not ready, storing user for later');
         return;
     }
 
@@ -180,7 +177,6 @@ auth.onAuthStateChanged(async (user) => {
 async function handleAuthStateChange(user) {
     if (user) {
         currentFirebaseUser = user;
-        console.log('Handling auth for user:', user.email);
 
         // Check if user has an organization
         const userDoc = await db.collection('users').doc(user.uid).get();
@@ -208,7 +204,6 @@ function showAuthScreen() {
 }
 
 function showApp() {
-    console.log('showApp() called');
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appContent').style.display = 'block';
 
@@ -491,23 +486,19 @@ async function loadFirestoreData() {
     }
 
     try {
-        console.log('Loading data for organization:', currentOrganization.id);
         const orgRef = db.collection('organizations').doc(currentOrganization.id);
 
         // Load clients
         const clientsSnapshot = await orgRef.collection('clients').get();
         appData.clients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('Loaded clients:', appData.clients.length);
 
         // Load projects
         const projectsSnapshot = await orgRef.collection('projects').get();
         appData.projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('Loaded projects:', appData.projects.length);
 
         // Load time entries
         const entriesSnapshot = await orgRef.collection('timeEntries').get();
         appData.entries = entriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('Loaded entries:', appData.entries.length);
 
         // Load users (deprecated - keeping for compatibility)
         appData.users = [];
@@ -547,8 +538,6 @@ async function loadFirestoreData() {
             }
         }
 
-        console.log('Data loaded successfully from Firestore');
-
     } catch (error) {
         console.error('Load Firestore data error:', error);
         showNotification('beim Laden der Daten: ' + error.message, 'error');
@@ -560,7 +549,6 @@ async function loadFirestoreData() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('DOM loaded');
     domReady = true;
 
     // Setup time input auto-formatting
@@ -571,7 +559,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // If auth state changed before DOM was ready, handle it now
     if (pendingAuthUser !== null) {
-        console.log('Processing pending auth user');
         await handleAuthStateChange(pendingAuthUser);
         pendingAuthUser = null;
     }
@@ -614,12 +601,6 @@ function setupTimeInputFormatting() {
 }
 
 function initializeApp() {
-    console.log('Initializing app with data:', {
-        clients: appData.clients.length,
-        projects: appData.projects.length,
-        entries: appData.entries.length
-    });
-
     renderUsers();
     renderClients();
     renderProjects();
@@ -630,8 +611,6 @@ function initializeApp() {
     populateExportDropdowns();
     initCharts();
     updateCharts();
-
-    console.log('App initialization complete');
 }
 
 // Deprecated: Data is now loaded from Firestore via loadFirestoreData()
@@ -996,7 +975,6 @@ function renderUsers() {
     const filterSelect = document.getElementById('filterUser');
 
     if (!select || !filterSelect) {
-        console.log('User selection elements not found - using Firebase auth instead');
         return;
     }
 
