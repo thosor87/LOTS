@@ -1151,14 +1151,17 @@ a:hover {
 }
 
 .footer-links a {
-    color: rgba(255, 255, 255, 0.9);
+    color: #FFFFFF !important;
     text-decoration: none;
-    padding: 0 var(--spacing-sm);
-    transition: color var(--transition-fast);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    transition: all var(--transition-fast);
 }
 
 .footer-links a:hover {
-    color: var(--white);
+    color: #FFFFFF !important;
+    background-color: rgba(255, 255, 255, 0.25);
     text-decoration: underline;
 }
 
