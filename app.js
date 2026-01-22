@@ -3161,6 +3161,32 @@ class TagsInputManager {
         });
     }
 
+    isTagUsed(tagName) {
+        return appData.entries.some(entry => {
+            const entryTags = normalizeTags(entry.tags);
+            return entryTags.includes(tagName);
+        });
+    }
+
+    deleteTag(tagName, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+
+        if (!confirm(`Tag "${tagName}" wirklich löschen?`)) {
+            return;
+        }
+
+        // Remove from global tags
+        appData.tags = appData.tags.filter(t => t !== tagName);
+        saveData();
+
+        // Refresh dropdown
+        this.showSuggestions(this.input.value.trim().toLowerCase());
+
+        showNotification(`Tag "${tagName}" wurde gelöscht`, 'success');
+    }
+
     showSuggestions(query) {
         this.allTags = appData.tags || [];
         const filtered = this.allTags.filter(tag =>
@@ -3172,9 +3198,17 @@ class TagsInputManager {
 
         // Show existing matching tags
         filtered.forEach(tag => {
+            const isUsed = this.isTagUsed(tag);
+            const deleteBtn = !isUsed ? `
+                <span class="tags-dropdown-item-delete"
+                      onclick="tagsManagers['${this.input.id}'].deleteTag('${escapeHtml(tag)}', event)"
+                      title="Tag löschen">−</span>
+            ` : '';
+
             html += `
                 <div class="tags-dropdown-item" data-tag="${escapeHtml(tag)}" onclick="tagsManagers['${this.input.id}'].addTag('${escapeHtml(tag)}')">
                     <span class="tags-dropdown-item-tag">${escapeHtml(tag)}</span>
+                    ${deleteBtn}
                 </div>
             `;
         });
