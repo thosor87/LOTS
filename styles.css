@@ -622,22 +622,11 @@ a:hover {
 .tags-input-wrapper {
     position: relative;
     min-height: 38px;
-    border: 1px solid var(--gray-light);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-sm) var(--spacing-md);
-    background: white;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     align-items: center;
     cursor: text;
-    transition: all var(--transition-fast);
-}
-
-.tags-input-wrapper:focus-within {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 .tags-selected {
@@ -687,11 +676,18 @@ a:hover {
 .tags-input {
     flex: 1;
     min-width: 120px;
-    border: none;
-    outline: none;
-    padding: 4px;
-    font-size: 0.9rem;
+    border: 1px solid var(--gray-light);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.95rem;
     font-family: inherit;
+    transition: all var(--transition-fast);
+}
+
+.tags-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-lighter);
 }
 
 .tags-input::placeholder {
@@ -1082,11 +1078,21 @@ a:hover {
     color: var(--white);
     padding: var(--spacing-2xl) var(--spacing-xl);
     text-align: center;
+    position: relative;
 }
 
 .footer-content {
     max-width: 1200px;
     margin: 0 auto;
+}
+
+.footer-version {
+    position: absolute;
+    bottom: 10px;
+    right: 20px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0;
 }
 
 .footer-brand {
