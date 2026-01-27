@@ -2,7 +2,11 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#660066">
     <title>LOTS | LexOffice Time Scheduling</title>
 
     <!-- Favicon -->
@@ -195,7 +199,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="entryDuration">Dauer (Stunden)</label>
-                                <input type="number" id="entryDuration" step="any" min="0" placeholder="z.B. 2.5">
+                                <input type="number" id="entryDuration" step="any" min="0" placeholder="z.B. 2.5" inputmode="decimal">
                                 <small>Optional: z.B. 2.5 für 2h 30min</small>
                             </div>
                             <div class="form-group">
@@ -500,11 +504,11 @@
                 </div>
                 <div class="form-group">
                     <label for="clientEmail">E-Mail</label>
-                    <input type="email" id="clientEmail">
+                    <input type="email" id="clientEmail" inputmode="email" autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="clientPhone">Telefon</label>
-                    <input type="tel" id="clientPhone">
+                    <input type="tel" id="clientPhone" inputmode="tel" autocomplete="tel">
                 </div>
                 <div class="form-group">
                     <label for="clientAddress">Adresse</label>
@@ -512,7 +516,7 @@
                 </div>
                 <div class="form-group">
                     <label for="clientHourlyRate">Stundensatz (€)</label>
-                    <input type="number" id="clientHourlyRate" step="0.01" min="0">
+                    <input type="number" id="clientHourlyRate" step="0.01" min="0" inputmode="decimal">
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('clientModal')">Abbrechen</button>
@@ -547,11 +551,11 @@
                 </div>
                 <div class="form-group">
                     <label for="projectBudgetHours">Budget (Stunden)</label>
-                    <input type="number" id="projectBudgetHours" min="0" step="0.5">
+                    <input type="number" id="projectBudgetHours" min="0" step="0.5" inputmode="decimal">
                 </div>
                 <div class="form-group">
                     <label for="projectHourlyRate">Stundensatz (€)</label>
-                    <input type="number" id="projectHourlyRate" min="0" step="0.01" placeholder="Optional: überschreibt Kunden-Stundensatz">
+                    <input type="number" id="projectHourlyRate" min="0" step="0.01" placeholder="Optional: überschreibt Kunden-Stundensatz" inputmode="decimal">
                     <small>Leer lassen für Kunden-Stundensatz</small>
                 </div>
                 <div class="form-group">
@@ -597,7 +601,7 @@
                 </div>
                 <div class="form-group">
                     <label for="userEmail">E-Mail</label>
-                    <input type="email" id="userEmail">
+                    <input type="email" id="userEmail" inputmode="email" autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="userColor">Farbe (für Charts)</label>
@@ -672,7 +676,7 @@
                     </div>
                     <div class="form-group">
                         <label for="editEntryDuration">Dauer (Stunden)</label>
-                        <input type="number" id="editEntryDuration" step="any" min="0" placeholder="z.B. 2.5" readonly>
+                        <input type="number" id="editEntryDuration" step="any" min="0" placeholder="z.B. 2.5" inputmode="decimal" readonly>
                         <small>Wird automatisch aus Start- und Endzeit berechnet</small>
                     </div>
                     <div class="form-group">
