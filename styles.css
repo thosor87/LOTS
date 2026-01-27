@@ -2951,3 +2951,371 @@ a:hover {
 [data-theme="dark"] .nav-link.active {
     color: var(--primary-light) !important;
 }
+
+/* ============================================
+   MOBILE OPTIMIZATION ENHANCEMENTS
+   ============================================ */
+
+/* Safe Area Insets for iPhone Notch/Dynamic Island */
+@supports (padding: max(0px)) {
+    .header {
+        padding-top: max(0.75rem, env(safe-area-inset-top));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+
+    .footer {
+        padding-bottom: max(2rem, env(safe-area-inset-bottom));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+
+    .nav {
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    }
+
+    .modal {
+        padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    }
+}
+
+/* Touch Action Optimization */
+.btn,
+.nav-link,
+.card,
+.entry-card,
+.recent-project-btn,
+.mobile-action-btn,
+.burger-menu {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection on interactive elements */
+.btn,
+.nav-link,
+.burger-menu,
+.mobile-action-btn {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Improved focus states for accessibility on mobile */
+.btn:focus-visible,
+.nav-link:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Smooth scrolling with momentum on iOS */
+.entries-container,
+.modal-content,
+.detail-table-container,
+.tags-dropdown {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Prevent pull-to-refresh interference */
+body {
+    overscroll-behavior-y: none;
+}
+
+/* Form input improvements for mobile */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="month"],
+select,
+textarea {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Better date/time inputs on mobile */
+input[type="date"],
+input[type="time"],
+input[type="month"] {
+    min-height: 44px;
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* ============================================
+   ENHANCED LANDSCAPE MODE SUPPORT
+   ============================================ */
+
+@media (max-height: 600px) and (orientation: landscape) {
+    /* Compact header in landscape */
+    .header {
+        padding: 0.5rem 1rem;
+    }
+
+    .header-content {
+        padding: 0;
+    }
+
+    .logo-text {
+        font-size: 1.1rem;
+    }
+
+    /* Hide stats bar in landscape to save space */
+    .stats-bar {
+        display: none;
+    }
+
+    /* Main content starts earlier */
+    .main {
+        padding-top: 60px;
+    }
+
+    /* Compact sections */
+    .section {
+        padding: 1rem;
+    }
+
+    .section-header {
+        margin-bottom: 1rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+    }
+
+    /* Timer more compact */
+    .timer-display {
+        font-size: 1.75rem;
+    }
+
+    .timer-card {
+        padding: 1rem;
+    }
+
+    /* Compact forms */
+    .form-grid {
+        gap: 0.75rem;
+    }
+
+    .form-group {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Smaller modals */
+    .modal-content {
+        max-height: 85vh;
+        padding: 1rem;
+    }
+
+    .modal-header {
+        margin-bottom: 0.75rem;
+    }
+
+    /* Charts container height */
+    .chart-container,
+    .chart-card canvas {
+        max-height: 200px;
+    }
+
+    /* Navigation in landscape */
+    .nav {
+        width: 50vw;
+        max-width: 300px;
+        padding-top: 60px;
+    }
+
+    .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    /* Entries list more compact */
+    .entry-card {
+        padding: 0.75rem;
+    }
+}
+
+/* ============================================
+   ADDITIONAL RESPONSIVE TABLE IMPROVEMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Make tables more readable on mobile */
+    .detail-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .detail-table thead {
+        position: sticky;
+        top: 0;
+        background: var(--gray-lighter);
+        z-index: 1;
+    }
+
+    .detail-table th,
+    .detail-table td {
+        min-width: 80px;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .detail-table td:first-child,
+    .detail-table th:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--white);
+        z-index: 2;
+        border-right: 2px solid var(--gray-lighter);
+    }
+
+    .detail-table th:first-child {
+        background: var(--gray-lighter);
+        z-index: 3;
+    }
+
+    /* Actions column narrower */
+    .detail-table .actions {
+        flex-wrap: nowrap;
+    }
+}
+
+/* ============================================
+   IMPROVED TOUCH TARGETS
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Ensure all interactive elements have proper touch targets */
+    .btn,
+    .nav-link,
+    .mobile-action-btn,
+    select,
+    input[type="checkbox"],
+    input[type="radio"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Checkboxes and radios */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Modal close button */
+    .modal-close {
+        width: 44px;
+        height: 44px;
+        font-size: 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Entry card actions */
+    .entry-actions .btn {
+        padding: 0.5rem 0.75rem;
+        min-width: 44px;
+    }
+
+    /* Card action buttons */
+    .card-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* Filter dropdowns */
+    .filter-group select,
+    .filter-group input {
+        min-height: 44px;
+        width: 100%;
+    }
+
+    /* Tags */
+    .tag,
+    .tag-pill {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .tag-pill-remove {
+        width: 20px;
+        height: 20px;
+        font-size: 14px;
+    }
+}
+
+/* ============================================
+   PWA & STANDALONE MODE IMPROVEMENTS
+   ============================================ */
+
+@media (display-mode: standalone) {
+    /* Hide browser UI elements when running as PWA */
+    .footer-note {
+        display: none;
+    }
+}
+
+/* ============================================
+   REDUCED MOTION SUPPORT
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .nav {
+        transition: none;
+    }
+
+    .modal-content {
+        animation: none;
+    }
+
+    .notification {
+        animation: none;
+    }
+}
+
+/* ============================================
+   HIGH CONTRAST MODE SUPPORT
+   ============================================ */
+
+@media (prefers-contrast: high) {
+    :root {
+        --primary: #4a004a;
+        --gray-light: #666666;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    .btn {
+        border: 2px solid currentColor;
+    }
+
+    .card,
+    .entry-card,
+    .timer-card,
+    .chart-card {
+        border: 2px solid var(--gray);
+    }
+
+    input,
+    select,
+    textarea {
+        border-width: 2px;
+    }
+}
